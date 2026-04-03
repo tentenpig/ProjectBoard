@@ -55,41 +55,54 @@ export default function Game() {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('game:state', (state: GameStateView) => {
+    const handleGameState = (state: GameStateView) => {
+      console.log('[Game] game:state received, phase:', state.phase);
       setGameState(state);
       if (state.phase === 'selecting') {
         setEvents([]);
         setAllSelected(null);
       }
-    });
+    };
 
-    socket.on('game:event', (event: GameEvent) => {
+    const handleGameEvent = (event: GameEvent) => {
       setEvents((prev) => [...prev, event]);
-    });
+    };
 
-    socket.on('game:all_selected', (plays: { playerId: number; card: Card; nickname?: string }[]) => {
+    const handleAllSelected = (plays: { playerId: number; card: Card; nickname?: string }[]) => {
       setAllSelected(plays);
-    });
+    };
 
-    socket.on('game:round_end', (result: RoundEndResult) => {
+    const handleRoundEnd = (result: RoundEndResult) => {
       setRoundResult(result);
-    });
+    };
 
-    socket.on('game:new_round', () => {
+    const handleNewRound = () => {
       setRoundResult(null);
       setEvents([]);
       setAllSelected(null);
       setSelectedCard(null);
-    });
+    };
+
+    socket.on('game:state', handleGameState);
+    socket.on('game:event', handleGameEvent);
+    socket.on('game:all_selected', handleAllSelected);
+    socket.on('game:round_end', handleRoundEnd);
+    socket.on('game:new_round', handleNewRound);
+
+    // Request current game state on mount
+    if (roomId) {
+      console.log('[Game] Emitting room:get_state', roomId);
+      socket.emit('room:get_state', roomId);
+    }
 
     return () => {
-      socket.off('game:state');
-      socket.off('game:event');
-      socket.off('game:all_selected');
-      socket.off('game:round_end');
-      socket.off('game:new_round');
+      socket.off('game:state', handleGameState);
+      socket.off('game:event', handleGameEvent);
+      socket.off('game:all_selected', handleAllSelected);
+      socket.off('game:round_end', handleRoundEnd);
+      socket.off('game:new_round', handleNewRound);
     };
-  }, [socket]);
+  }, [socket, roomId]);
 
   const playCard = useCallback(() => {
     if (!socket || selectedCard === null) return;

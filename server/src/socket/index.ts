@@ -201,6 +201,29 @@ export function setupSocket(io: Server) {
       broadcastRoomList(io);
     });
 
+    // Request room state (for page mount / reconnect)
+    socket.on('room:get_state', (roomId: string) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', '방을 찾을 수 없습니다.');
+
+      // Make sure socket is in the room's socket.io channel
+      socket.join(roomId);
+
+      socket.emit('room:state', {
+        id: room.id,
+        name: room.name,
+        hostId: room.hostId,
+        gameType: room.gameType,
+        maxPlayers: room.maxPlayers,
+        players: room.players.map((p) => ({ id: p.id, nickname: p.nickname })),
+        status: room.status,
+      });
+
+      if (room.gameState) {
+        socket.emit('game:state', getPlayerView(room.gameState, user.id));
+      }
+    });
+
     // Leave room
     socket.on('room:leave', () => {
       for (const [roomId, room] of rooms) {

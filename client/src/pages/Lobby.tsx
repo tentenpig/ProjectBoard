@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -23,32 +23,31 @@ export default function Lobby() {
   const socket = useSocket();
   const navigate = useNavigate();
 
+  const handleRoomList = useCallback((list: RoomInfo[]) => {
+    setRooms(list);
+  }, []);
+
+  const handleRoomCreated = useCallback((roomId: string) => {
+    navigate(`/room/${roomId}`);
+  }, [navigate]);
+
+  const handleRoomJoined = useCallback((roomId: string) => {
+    navigate(`/room/${roomId}`);
+  }, [navigate]);
+
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('room:list', (list: RoomInfo[]) => {
-      setRooms(list);
-    });
-
-    socket.on('room:created', (roomId: string) => {
-      navigate(`/room/${roomId}`);
-    });
-
-    socket.on('room:joined', (roomId: string) => {
-      navigate(`/room/${roomId}`);
-    });
-
-    socket.on('error', (msg: string) => {
-      alert(msg);
-    });
+    socket.on('room:list', handleRoomList);
+    socket.on('room:created', handleRoomCreated);
+    socket.on('room:joined', handleRoomJoined);
 
     return () => {
-      socket.off('room:list');
-      socket.off('room:created');
-      socket.off('room:joined');
-      socket.off('error');
+      socket.off('room:list', handleRoomList);
+      socket.off('room:created', handleRoomCreated);
+      socket.off('room:joined', handleRoomJoined);
     };
-  }, [socket, navigate]);
+  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined]);
 
   const createRoom = () => {
     if (!socket || !roomName.trim()) return;

@@ -7,45 +7,36 @@ import Lobby from './pages/Lobby';
 import Room from './pages/Room';
 import Game from './pages/Game';
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
-  return token ? <>{children}</> : <Navigate to="/login" />;
-}
-
-function PrivateRoutes() {
-  return (
-    <SocketProvider>
-      <Routes>
-        <Route path="/lobby" element={<Lobby />} />
-        <Route path="/room/:roomId" element={<Room />} />
-        <Route path="/game/:roomId" element={<Game />} />
-        <Route path="*" element={<Navigate to="/lobby" />} />
-      </Routes>
-    </SocketProvider>
-  );
-}
-
 function AppRoutes() {
   const { token } = useAuth();
 
-  if (!token) {
-    return (
-      <Routes>
-        <Route path="/register" element={<Register />} />
-        <Route path="*" element={<Login />} />
-      </Routes>
-    );
-  }
-
-  return <PrivateRoutes />;
+  return (
+    <Routes>
+      {!token ? (
+        <>
+          <Route path="/register" element={<Register />} />
+          <Route path="*" element={<Login />} />
+        </>
+      ) : (
+        <>
+          <Route path="/lobby" element={<Lobby />} />
+          <Route path="/room/:roomId" element={<Room />} />
+          <Route path="/game/:roomId" element={<Game />} />
+          <Route path="*" element={<Navigate to="/lobby" />} />
+        </>
+      )}
+    </Routes>
+  );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <SocketProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SocketProvider>
     </AuthProvider>
   );
 }

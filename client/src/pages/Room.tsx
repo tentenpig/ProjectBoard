@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -20,27 +20,38 @@ export default function Room() {
   const socket = useSocket();
   const navigate = useNavigate();
 
+  const handleRoomState = useCallback((state: RoomState) => {
+    console.log('[Room] room:state received', state);
+    setRoomState(state);
+  }, []);
+
+  const handleGameStarted = useCallback(() => {
+    console.log('[Room] game:started, navigating to game');
+    navigate(`/game/${roomId}`);
+  }, [navigate, roomId]);
+
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('[Room] socket is null, waiting...');
+      return;
+    }
 
-    socket.on('room:state', (state: RoomState) => {
-      setRoomState(state);
-    });
+    console.log('[Room] Registering listeners, roomId:', roomId, 'socket connected:', socket.connected);
 
-    socket.on('game:started', () => {
-      navigate(`/game/${roomId}`);
-    });
+    socket.on('room:state', handleRoomState);
+    socket.on('game:started', handleGameStarted);
 
-    socket.on('error', (msg: string) => {
-      alert(msg);
-    });
+    // Request current room state
+    if (roomId) {
+      console.log('[Room] Emitting room:get_state', roomId);
+      socket.emit('room:get_state', roomId);
+    }
 
     return () => {
-      socket.off('room:state');
-      socket.off('game:started');
-      socket.off('error');
+      socket.off('room:state', handleRoomState);
+      socket.off('game:started', handleGameStarted);
     };
-  }, [socket, roomId, navigate]);
+  }, [socket, roomId, handleRoomState, handleGameStarted]);
 
   const leaveRoom = () => {
     if (!socket) return;

@@ -30,9 +30,10 @@ export function getBullHeads(cardNumber: number): number {
   return 1;
 }
 
-export function createDeck(): Card[] {
+export function createDeck(playerCount: number): Card[] {
+  const maxCard = playerCount * 10 + 4;
   const deck: Card[] = [];
-  for (let i = 1; i <= 104; i++) {
+  for (let i = 1; i <= maxCard; i++) {
     deck.push({ number: i, bullHeads: getBullHeads(i) });
   }
   return deck;
@@ -52,7 +53,7 @@ export function calculatePenalty(cards: Card[]): number {
 }
 
 export function initRound(playerInfos: { id: number; nickname: string }[]): GameState {
-  const deck = shuffleDeck(createDeck());
+  const deck = shuffleDeck(createDeck(playerInfos.length));
   let cardIndex = 0;
 
   const rows: Card[][] = [];

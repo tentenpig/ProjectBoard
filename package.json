@@ -1,0 +1,23 @@
+{
+  "name": "projectboard",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tentenpig/ProjectBoard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tentenpig/ProjectBoard/issues"
+  },
+  "homepage": "https://github.com/tentenpig/ProjectBoard#readme",
+  "description": "",
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}

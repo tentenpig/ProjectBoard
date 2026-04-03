@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = `http://${window.location.hostname}:3001`;
 
 export default function Register() {
   const [username, setUsername] = useState('');

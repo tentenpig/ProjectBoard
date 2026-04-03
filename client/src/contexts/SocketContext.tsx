@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = `http://${window.location.hostname}:3001`;
 
 const SocketContext = createContext<Socket | null>(null);
 
@@ -21,12 +21,24 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       auth: { token },
     });
 
+    s.onAny((event, ...args) => {
+      console.log(`[Socket] ${event}`, ...args);
+    });
+
+    s.onAnyOutgoing((event, ...args) => {
+      console.log(`[Socket >>] ${event}`, ...args);
+    });
+
     s.on('connect', () => {
-      console.log('Socket connected');
+      console.log('[Socket] Connected:', s.id);
     });
 
     s.on('connect_error', (err) => {
-      console.error('Socket connection error:', err.message);
+      console.error('[Socket] Connection error:', err.message);
+    });
+
+    s.on('error', (msg) => {
+      console.error('[Socket] Server error:', msg);
     });
 
     setSocket(s);
