@@ -26,6 +26,117 @@
   --bull-7: #7b4f8a;
 }
 
+/* Excel Theme */
+[data-theme="excel"] {
+  --bg: #e8e8e8;
+  --bg-card: #ffffff;
+  --bg-surface: #d4d4d4;
+  --bg-hover: #c8d8e8;
+  --border: #808080;
+  --border-light: #b0b0b0;
+  --accent: #217346;
+  --accent-hover: #185c37;
+  --accent-soft: #4ea672;
+  --text: #1a1a1a;
+  --text-muted: #606060;
+  --success: #217346;
+  --warning: #bf8f00;
+  --danger: #c00000;
+  --bull-1: #4472c4;
+  --bull-2: #217346;
+  --bull-3: #bf8f00;
+  --bull-5: #c00000;
+  --bull-7: #7030a0;
+}
+
+[data-theme="excel"] body {
+  font-family: 'Segoe UI', 'Malgun Gothic', 'Arial', sans-serif;
+}
+
+[data-theme="excel"] .auth-card,
+[data-theme="excel"] .modal {
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+}
+
+[data-theme="excel"] button {
+  border-radius: 2px;
+}
+
+[data-theme="excel"] input,
+[data-theme="excel"] select {
+  border-radius: 2px;
+}
+
+[data-theme="excel"] .card {
+  border-radius: 2px;
+  border-width: 1px;
+}
+
+[data-theme="excel"] .game-row,
+[data-theme="excel"] .room-card,
+[data-theme="excel"] .player-item,
+[data-theme="excel"] .player-badge,
+[data-theme="excel"] .chat-container,
+[data-theme="excel"] .scoreboard-panel,
+[data-theme="excel"] .game-header,
+[data-theme="excel"] .hand-area,
+[data-theme="excel"] .selected-cards-reveal {
+  border-radius: 0;
+  border: 1px solid var(--border);
+}
+
+[data-theme="excel"] .game-header {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+[data-theme="excel"] .game-header .round-info,
+[data-theme="excel"] .game-header .phase-info,
+[data-theme="excel"] .game-header .my-penalty {
+  color: #fff;
+}
+
+[data-theme="excel"] .game-header .btn-secondary {
+  color: #fff;
+  border-color: rgba(255,255,255,0.5);
+}
+
+[data-theme="excel"] .lobby-header {
+  border-bottom: 2px solid var(--accent);
+}
+
+[data-theme="excel"] .room-card {
+  border-radius: 0;
+}
+
+[data-theme="excel"] .host-badge,
+[data-theme="excel"] .game-badge {
+  border-radius: 2px;
+}
+
+[data-theme="excel"] .score-table th {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+[data-theme="excel"] .score-table td {
+  border-bottom: 1px solid var(--border-light);
+}
+
+[data-theme="excel"] .score-table tr:nth-child(even) td {
+  background: #f0f0f0;
+}
+
+[data-theme="excel"] .online-list {
+  border-radius: 0;
+  border: 1px solid var(--border);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+}
+
 body {
   font-family: 'Source Serif 4', 'Noto Serif KR', 'Georgia', serif;
   background: var(--bg);
@@ -262,6 +373,17 @@ button {
   align-items: baseline;
   gap: 12px;
   position: relative;
+}
+
+.theme-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .online-count {

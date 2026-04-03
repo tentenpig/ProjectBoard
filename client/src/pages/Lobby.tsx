@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import { useTheme } from '../contexts/ThemeContext';
 import Chat from '../components/Chat';
 
 interface RoomInfo {
@@ -24,6 +25,7 @@ export default function Lobby() {
   const [maxPlayers, setMaxPlayers] = useState(4);
   const { user, logout } = useAuth();
   const socket = useSocket();
+  const { theme, setTheme, themes } = useTheme();
   const navigate = useNavigate();
 
   const handleRoomList = useCallback((list: RoomInfo[]) => {
@@ -110,6 +112,9 @@ export default function Lobby() {
               )}
             </div>
             <div className="user-info">
+              <select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value as any)}>
+                {themes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
               <span>{user?.nickname}</span>
               <button onClick={logout} className="btn-secondary">로그아웃</button>
             </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
 import Lobby from './pages/Lobby';
 import Room from './pages/Room';
@@ -27,12 +28,14 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </SocketProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </SocketProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
