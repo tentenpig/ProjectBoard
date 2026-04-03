@@ -17,7 +17,8 @@ interface RoomInfo {
 
 export default function Lobby() {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
-  const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [showOnlineList, setShowOnlineList] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(4);
@@ -29,8 +30,8 @@ export default function Lobby() {
     setRooms(list);
   }, []);
 
-  const handleOnlineCount = useCallback((count: number) => {
-    setOnlineCount(count);
+  const handleOnlineUsers = useCallback((users: string[]) => {
+    setOnlineUsers(users);
   }, []);
 
   const handleRoomCreated = useCallback((roomId: string) => {
@@ -47,15 +48,15 @@ export default function Lobby() {
     socket.on('room:list', handleRoomList);
     socket.on('room:created', handleRoomCreated);
     socket.on('room:joined', handleRoomJoined);
-    socket.on('online:count', handleOnlineCount);
+    socket.on('online:users', handleOnlineUsers);
 
     return () => {
       socket.off('room:list', handleRoomList);
       socket.off('room:created', handleRoomCreated);
       socket.off('room:joined', handleRoomJoined);
-      socket.off('online:count', handleOnlineCount);
+      socket.off('online:users', handleOnlineUsers);
     };
-  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined, handleOnlineCount]);
+  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined, handleOnlineUsers]);
 
   const createRoom = () => {
     if (!socket || !roomName.trim()) return;
@@ -84,7 +85,18 @@ export default function Lobby() {
           <header className="lobby-header">
             <div className="lobby-title">
               <h1>네온 보드게임</h1>
-              <span className="online-count">{onlineCount}명 접속 중</span>
+              <span className="online-count" onClick={() => setShowOnlineList(!showOnlineList)}>
+                {onlineUsers.length}명 접속 중
+              </span>
+              {showOnlineList && (
+                <div className="online-list">
+                  {onlineUsers.map((name) => (
+                    <div key={name} className="online-user">
+                      {name} {name === user?.nickname ? '(나)' : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="user-info">
               <span>{user?.nickname}</span>

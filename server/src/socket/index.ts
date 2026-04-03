@@ -61,7 +61,7 @@ function broadcastRoomList(io: Server) {
     status: r.status,
   }));
   io.to('lobby').emit('room:list', roomList);
-  io.to('lobby').emit('online:count', userSockets.size);
+  io.to('lobby').emit('online:users', Array.from(onlineNicknames));
 }
 
 function broadcastRoomState(io: Server, room: Room) {
