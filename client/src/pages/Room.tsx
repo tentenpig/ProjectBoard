@@ -72,39 +72,44 @@ export default function Room() {
   const isHost = user?.id === roomState.hostId;
 
   return (
-    <div className="room-container">
-      <header className="room-header">
-        <button onClick={leaveRoom} className="btn-secondary">← 나가기</button>
-        <h2>{roomState.name}</h2>
-        <span className="game-badge">젝스님트</span>
-      </header>
+    <div className="page-layout">
+      <div className="page-main">
+        <div className="room-container">
+          <header className="room-header">
+            <button onClick={leaveRoom} className="btn-secondary">← 나가기</button>
+            <h2>{roomState.name}</h2>
+            <span className="game-badge">젝스님트</span>
+          </header>
 
-      <div className="room-content">
-        <div className="player-list">
-          <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
-          {roomState.players.map((p) => (
-            <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''}`}>
-              <span className="player-name">{p.nickname}</span>
-              {p.id === roomState.hostId && <span className="host-badge">방장</span>}
+          <div className="room-content">
+            <div className="player-list">
+              <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
+              {roomState.players.map((p) => (
+                <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''}`}>
+                  <span className="player-name">{p.nickname}</span>
+                  {p.id === roomState.hostId && <span className="host-badge">방장</span>}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
+            <div className="room-footer">
+              {isHost ? (
+                <button
+                  onClick={startGame}
+                  className="btn-primary btn-large"
+                  disabled={roomState.players.length < 2}
+                >
+                  {roomState.players.length < 2 ? '최소 2명이 필요합니다' : '게임 시작'}
+                </button>
+              ) : (
+                <p className="waiting-message">방장이 게임을 시작할 때까지 대기 중...</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="page-chat">
         <Chat channel={roomId!} />
-
-        <div className="room-footer">
-          {isHost ? (
-            <button
-              onClick={startGame}
-              className="btn-primary btn-large"
-              disabled={roomState.players.length < 2}
-            >
-              {roomState.players.length < 2 ? '최소 2명이 필요합니다' : '게임 시작'}
-            </button>
-          ) : (
-            <p className="waiting-message">방장이 게임을 시작할 때까지 대기 중...</p>
-          )}
-        </div>
       </div>
     </div>
   );

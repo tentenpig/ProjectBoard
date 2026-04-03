@@ -49,6 +49,7 @@ export default function Game() {
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [roundResult, setRoundResult] = useState<RoundEndResult | null>(null);
   const [allSelected, setAllSelected] = useState<{ playerId: number; card: Card; nickname?: string }[] | null>(null);
+  const [readyStatus, setReadyStatus] = useState<{ ready: number[]; total: number } | null>(null);
   const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
@@ -79,14 +80,19 @@ export default function Game() {
 
     const handleNewRound = () => {
       setRoundResult(null);
+      setReadyStatus(null);
       setEvents([]);
       setAllSelected(null);
       setSelectedCard(null);
     };
 
     const handleAborted = () => {
-      alert('상대방이 나갔습니다. 로비로 돌아갑니다.');
-      navigate('/lobby');
+      alert('상대방이 나갔습니다. 대기실로 돌아갑니다.');
+      navigate(`/room/${roomId}`);
+    };
+
+    const handleReadyStatus = (status: { ready: number[]; total: number }) => {
+      setReadyStatus(status);
     };
 
     socket.on('game:state', handleGameState);
@@ -95,6 +101,7 @@ export default function Game() {
     socket.on('game:round_end', handleRoundEnd);
     socket.on('game:new_round', handleNewRound);
     socket.on('game:aborted', handleAborted);
+    socket.on('game:ready_status', handleReadyStatus);
 
     // Request current game state on mount
     if (roomId) {
@@ -108,6 +115,7 @@ export default function Game() {
       socket.off('game:all_selected', handleAllSelected);
       socket.off('game:round_end', handleRoundEnd);
       socket.off('game:new_round', handleNewRound);
+      socket.off('game:ready_status', handleReadyStatus);
       socket.off('game:aborted', handleAborted);
     };
   }, [socket, roomId]);
@@ -149,6 +157,8 @@ export default function Game() {
   const isHost = gameState.players[0]?.id === user?.id;
 
   return (
+    <div className="page-layout">
+    <div className="page-main">
     <div className="game-container">
       <header className="game-header">
         <button onClick={leaveGame} className="btn-secondary btn-small">나가기</button>
@@ -255,8 +265,6 @@ export default function Game() {
         </div>
       )}
 
-      <Chat channel={roomId!} />
-
       {/* Round end / Game over overlay */}
       {roundResult && (
         <div className="modal-overlay">
@@ -282,21 +290,40 @@ export default function Game() {
                   ))}
               </tbody>
             </table>
-            {isHost && (
-              <div className="modal-actions">
-                {roundResult.gameOver ? (
-                  <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>
-                ) : (
-                  <button onClick={nextRound} className="btn-primary">다음 라운드</button>
-                )}
+            <div className="modal-actions">
+              <button onClick={leaveGame} className="btn-secondary">나가기</button>
+              {roundResult.gameOver ? (
+                <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>
+              ) : (
+                <button
+                  onClick={nextRound}
+                  className="btn-primary"
+                  disabled={readyStatus?.ready.includes(user?.id ?? -1)}
+                >
+                  {readyStatus?.ready.includes(user?.id ?? -1) ? '대기 중...' : '다음 라운드'}
+                </button>
+              )}
+            </div>
+            {readyStatus && !roundResult.gameOver && (
+              <div className="ready-status">
+                <p>{readyStatus.ready.length}/{readyStatus.total}명 준비 완료</p>
+                <div className="ready-players">
+                  {gameState.players.map((p) => (
+                    <span key={p.id} className={`ready-player ${readyStatus.ready.includes(p.id) ? 'is-ready' : ''}`}>
+                      {p.nickname} {readyStatus.ready.includes(p.id) ? '✓' : '...'}
+                    </span>
+                  ))}
+                </div>
               </div>
-            )}
-            {!isHost && (
-              <p className="waiting-message">방장이 다음 단계를 선택합니다...</p>
             )}
           </div>
         </div>
       )}
+    </div>
+    </div>
+    <div className="page-chat">
+      <Chat channel={roomId!} />
+    </div>
     </div>
   );
 }

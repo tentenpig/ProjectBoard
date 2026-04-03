@@ -33,6 +33,7 @@ interface Room {
   players: UserInfo[];
   gameState: GameState | null;
   status: 'waiting' | 'playing';
+  readyForNext: Set<number>;
 }
 
 const rooms = new Map<string, Room>();
@@ -208,6 +209,7 @@ export function setupSocket(io: Server) {
         players: [user],
         gameState: null,
         status: 'waiting',
+        readyForNext: new Set(),
       };
 
       rooms.set(roomId, room);
@@ -328,15 +330,28 @@ export function setupSocket(io: Server) {
       }
     });
 
-    // New round
+    // Ready for next round
     socket.on('game:next_round', () => {
       for (const [, room] of rooms) {
-        if (room.hostId === user.id && room.gameState && room.gameState.phase === 'round_end') {
+        if (!room.gameState || room.gameState.phase !== 'round_end') continue;
+        if (!room.players.find((p) => p.id === user.id)) continue;
+
+        room.readyForNext.add(user.id);
+
+        // Broadcast who is ready
+        io.to(room.id).emit('game:ready_status', {
+          ready: Array.from(room.readyForNext),
+          total: room.players.length,
+        });
+
+        // All players ready -> start next round
+        if (room.readyForNext.size >= room.players.length) {
+          room.readyForNext.clear();
           startNewRound(room.gameState);
           broadcastGameState(io, room);
           io.to(room.id).emit('game:new_round', room.gameState.round);
-          break;
         }
+        break;
       }
     });
 
