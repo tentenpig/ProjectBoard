@@ -51,6 +51,7 @@ export default function Game() {
   const [roundResult, setRoundResult] = useState<RoundEndResult | null>(null);
   const [allSelected, setAllSelected] = useState<{ playerId: number; card: Card; nickname?: string }[] | null>(null);
   const [readyStatus, setReadyStatus] = useState<{ ready: number[]; total: number } | null>(null);
+  const [spectators, setSpectators] = useState<{ id: number; nickname: string }[]>([]);
   const [penaltyToast, setPenaltyToast] = useState<{ nickname: string; points: number } | null>(null);
   const [screenFlash, setScreenFlash] = useState(false);
   const [lastPlacement, setLastPlacement] = useState<{ playerId: number; nickname: string; card: Card; rowIndex: number; type: string } | null>(null);
@@ -151,6 +152,10 @@ export default function Game() {
       setReadyStatus(status);
     };
 
+    const handleRoomState = (state: { spectators?: { id: number; nickname: string }[] }) => {
+      setSpectators(state.spectators || []);
+    };
+
     socket.on('game:state', handleGameState);
     socket.on('game:event', handleGameEvent);
     socket.on('game:all_selected', handleAllSelected);
@@ -158,6 +163,7 @@ export default function Game() {
     socket.on('game:new_round', handleNewRound);
     socket.on('game:aborted', handleAborted);
     socket.on('game:ready_status', handleReadyStatus);
+    socket.on('room:state', handleRoomState);
 
     // Request current game state on mount
     if (roomId) {
@@ -173,6 +179,7 @@ export default function Game() {
       socket.off('game:new_round', handleNewRound);
       socket.off('game:ready_status', handleReadyStatus);
       socket.off('game:aborted', handleAborted);
+      socket.off('room:state', handleRoomState);
     };
   }, [socket, roomId]);
 
@@ -311,6 +318,12 @@ export default function Game() {
             {p.hasSelected && gameState.phase === 'selecting' && <span className="check">✓</span>}
           </div>
         ))}
+        {spectators.length > 0 && (
+          <div className="spectator-badge">
+            <span className="spectator-icon">👁</span>
+            <span>{spectators.map((s) => s.nickname).join(', ')}</span>
+          </div>
+        )}
       </div>
 
       {/* All selected cards reveal */}
