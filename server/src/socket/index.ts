@@ -31,6 +31,7 @@ interface Room {
   gameType: string;
   maxPlayers: number;
   players: UserInfo[];
+  spectators: UserInfo[];
   gameState: GameState | null;
   status: 'waiting' | 'playing';
   readyForNext: Set<number>;
@@ -51,7 +52,7 @@ function addChatMessage(channel: string, msg: { nickname: string; text: string; 
 }
 
 function broadcastRoomList(io: Server) {
-  const roomList = Array.from(rooms.values()).filter((r) => r.status === 'waiting').map((r) => ({
+  const roomList = Array.from(rooms.values()).map((r) => ({
     id: r.id,
     name: r.name,
     hostId: r.hostId,
@@ -73,6 +74,7 @@ function broadcastRoomState(io: Server, room: Room) {
     gameType: room.gameType,
     maxPlayers: room.maxPlayers,
     players: room.players.map((p) => ({ id: p.id, nickname: p.nickname })),
+    spectators: room.spectators.map((s) => ({ id: s.id, nickname: s.nickname })),
     status: room.status,
   });
 }
@@ -83,6 +85,14 @@ function broadcastGameState(io: Server, room: Room) {
     const socket = userSockets.get(player.id);
     if (socket) {
       socket.emit('game:state', getPlayerView(room.gameState, player.id));
+    }
+  }
+  // Send spectator view (no hand)
+  const spectatorView = { ...getPlayerView(room.gameState, -1), spectating: true };
+  for (const spec of room.spectators) {
+    const socket = userSockets.get(spec.id);
+    if (socket) {
+      socket.emit('game:state', spectatorView);
     }
   }
 }
@@ -159,6 +169,18 @@ function autoSelectIfLastCard(io: Server, room: Room) {
 
 function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
   for (const [roomId, room] of rooms) {
+    // Check if spectator
+    const specIdx = room.spectators.findIndex((s) => s.id === user.id);
+    if (specIdx !== -1) {
+      room.spectators.splice(specIdx, 1);
+      socket.leave(roomId);
+      socket.join('lobby');
+      broadcastRoomState(io, room);
+      broadcastRoomList(io);
+      return;
+    }
+
+    // Check if player
     const idx = room.players.findIndex((p) => p.id === user.id);
     if (idx === -1) continue;
 
@@ -167,6 +189,11 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
     socket.join('lobby');
 
     if (room.players.length === 0) {
+      // Also kick spectators
+      for (const spec of room.spectators) {
+        const s = userSockets.get(spec.id);
+        if (s) { s.leave(roomId); s.join('lobby'); }
+      }
       rooms.delete(roomId);
       broadcastRoomList(io);
       return;
@@ -212,9 +239,15 @@ export function setupSocket(io: Server) {
 
     // Check if user is already in a room (reconnect scenario)
     let existingRoom: Room | null = null;
+    let isSpectator = false;
     for (const [, room] of rooms) {
       if (room.players.find((p) => p.id === user.id)) {
         existingRoom = room;
+        break;
+      }
+      if (room.spectators.find((s) => s.id === user.id)) {
+        existingRoom = room;
+        isSpectator = true;
         break;
       }
     }
@@ -223,7 +256,11 @@ export function setupSocket(io: Server) {
       socket.join(existingRoom.id);
       broadcastRoomState(io, existingRoom);
       if (existingRoom.gameState) {
-        socket.emit('game:state', getPlayerView(existingRoom.gameState, user.id));
+        if (isSpectator) {
+          socket.emit('game:state', { ...getPlayerView(existingRoom.gameState, -1), spectating: true });
+        } else {
+          socket.emit('game:state', getPlayerView(existingRoom.gameState, user.id));
+        }
       }
     } else {
       socket.join('lobby');
@@ -240,6 +277,7 @@ export function setupSocket(io: Server) {
         gameType,
         maxPlayers: Math.min(Math.max(maxPlayers, 2), 10),
         players: [user],
+        spectators: [],
         gameState: null,
         status: 'waiting',
         readyForNext: new Set(),
@@ -269,6 +307,25 @@ export function setupSocket(io: Server) {
       broadcastRoomList(io);
     });
 
+    // Spectate room
+    socket.on('room:spectate', (roomId: string) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', '방을 찾을 수 없습니다.');
+      if (room.players.find((p) => p.id === user.id)) return socket.emit('error', '이미 참가한 방입니다.');
+      if (room.spectators.find((s) => s.id === user.id)) return socket.emit('error', '이미 관전 중입니다.');
+
+      room.spectators.push(user);
+      socket.leave('lobby');
+      socket.join(roomId);
+      socket.emit('room:spectating', roomId);
+      broadcastRoomState(io, room);
+      broadcastRoomList(io);
+      if (room.gameState) {
+        const spectatorView = { ...getPlayerView(room.gameState, -1), spectating: true };
+        socket.emit('game:state', spectatorView);
+      }
+    });
+
     // Request room state (for page mount / reconnect)
     socket.on('room:get_state', (roomId: string) => {
       const room = rooms.get(roomId);
@@ -284,11 +341,17 @@ export function setupSocket(io: Server) {
         gameType: room.gameType,
         maxPlayers: room.maxPlayers,
         players: room.players.map((p) => ({ id: p.id, nickname: p.nickname })),
+        spectators: room.spectators.map((s) => ({ id: s.id, nickname: s.nickname })),
         status: room.status,
       });
 
       if (room.gameState) {
-        socket.emit('game:state', getPlayerView(room.gameState, user.id));
+        const isSpectator = room.spectators.find((s) => s.id === user.id);
+        if (isSpectator) {
+          socket.emit('game:state', { ...getPlayerView(room.gameState, -1), spectating: true });
+        } else {
+          socket.emit('game:state', getPlayerView(room.gameState, user.id));
+        }
       }
     });
 
@@ -431,13 +494,15 @@ export function setupSocket(io: Server) {
 
     socket.on('chat:send', ({ channel, text }: { channel: string; text: string }) => {
       if (!text || text.length > 200) return;
-      const msg = { nickname: user.nickname, text, timestamp: Date.now() };
+      const room = channel !== 'lobby' ? rooms.get(channel) : null;
+      const isSpec = room?.spectators.find((s) => s.id === user.id);
+      const displayNickname = isSpec ? `${user.nickname} (관전)` : user.nickname;
+      const msg = { nickname: displayNickname, text, timestamp: Date.now() };
       if (channel === 'lobby') {
         addChatMessage('lobby', msg);
         io.to('lobby').emit('chat:message', msg);
       } else {
-        const room = rooms.get(channel);
-        if (room && room.players.find((p) => p.id === user.id)) {
+        if (room && (room.players.find((p) => p.id === user.id) || isSpec)) {
           addChatMessage(channel, msg);
           io.to(channel).emit('chat:message', msg);
         }

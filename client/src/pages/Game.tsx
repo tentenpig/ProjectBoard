@@ -27,6 +27,7 @@ interface GameStateView {
   players: PlayerInfo[];
   totalScores: Record<number, number>;
   sortedPlays?: { playerId: number; card: Card | null; nickname?: string }[];
+  spectating?: boolean;
 }
 
 interface GameEvent {
@@ -141,8 +142,8 @@ export default function Game() {
     };
 
     const handleAborted = () => {
-      alert('상대방이 나갔습니다. 대기실로 돌아갑니다.');
-      navigate(`/room/${roomId}`);
+      alert('게임이 중단되었습니다.');
+      navigate('/lobby');
     };
 
     const handleReadyStatus = (status: { ready: number[]; total: number }) => {
@@ -213,9 +214,10 @@ export default function Game() {
     return <div className="loading">게임을 불러오는 중...</div>;
   }
 
-  const isMyTurnToChoose = gameState.phase === 'choosing_row' && gameState.choosingPlayerId === user?.id;
-  const myPlayer = gameState.players.find((p) => p.id === user?.id);
-  const isHost = gameState.players[0]?.id === user?.id;
+  const isSpectating = gameState.spectating === true;
+  const isMyTurnToChoose = !isSpectating && gameState.phase === 'choosing_row' && gameState.choosingPlayerId === user?.id;
+  const myPlayer = isSpectating ? null : gameState.players.find((p) => p.id === user?.id);
+  const isHost = !isSpectating && gameState.players[0]?.id === user?.id;
 
   return (
     <div className="page-layout">
@@ -258,7 +260,7 @@ export default function Game() {
           {gameState.phase === 'round_end' && '라운드 종료!'}
           {gameState.phase === 'game_over' && '게임 종료!'}
         </div>
-        <div className="my-penalty">내 벌점: {myPlayer?.penalty || 0}</div>
+        <div className="my-penalty">{isSpectating ? '관전 중' : `내 벌점: ${myPlayer?.penalty || 0}`}</div>
       </header>
 
       {/* Players bar */}
@@ -324,7 +326,7 @@ export default function Game() {
       </div>
 
       {/* Hand */}
-      {gameState.phase === 'selecting' && (
+      {gameState.phase === 'selecting' && !isSpectating && (
         <div className="hand-area">
           {myPlayer?.hasSelected ? (
             <>
@@ -402,7 +404,9 @@ export default function Game() {
             </table>
             <div className="modal-actions">
               <button onClick={leaveGame} className="btn-secondary">나가기</button>
-              {roundResult.gameOver ? (
+              {isSpectating ? (
+                <p className="waiting-message">다음 라운드를 기다리는 중...</p>
+              ) : roundResult.gameOver ? (
                 <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>
               ) : (
                 <button

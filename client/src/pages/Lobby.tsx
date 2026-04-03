@@ -45,18 +45,24 @@ export default function Lobby() {
   useEffect(() => {
     if (!socket) return;
 
+    const handleSpectating = (roomId: string) => {
+      navigate(`/game/${roomId}`);
+    };
+
     socket.on('room:list', handleRoomList);
     socket.on('room:created', handleRoomCreated);
     socket.on('room:joined', handleRoomJoined);
+    socket.on('room:spectating', handleSpectating);
     socket.on('online:users', handleOnlineUsers);
 
     return () => {
       socket.off('room:list', handleRoomList);
       socket.off('room:created', handleRoomCreated);
       socket.off('room:joined', handleRoomJoined);
+      socket.off('room:spectating', handleSpectating);
       socket.off('online:users', handleOnlineUsers);
     };
-  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined, handleOnlineUsers]);
+  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined, handleOnlineUsers, navigate]);
 
   const createRoom = () => {
     if (!socket || !roomName.trim()) return;
@@ -72,6 +78,11 @@ export default function Lobby() {
   const joinRoom = (roomId: string) => {
     if (!socket) return;
     socket.emit('room:join', roomId);
+  };
+
+  const spectateRoom = (roomId: string) => {
+    if (!socket) return;
+    socket.emit('room:spectate', roomId);
   };
 
   const gameTypeLabel: Record<string, string> = {
@@ -157,10 +168,10 @@ export default function Lobby() {
                   <div className="room-actions">
                     {room.status === 'waiting' && room.playerCount < room.maxPlayers ? (
                       <button onClick={() => joinRoom(room.id)} className="btn-primary">참가</button>
+                    ) : room.status === 'playing' ? (
+                      <button onClick={() => spectateRoom(room.id)} className="btn-secondary">관전</button>
                     ) : (
-                      <button disabled className="btn-disabled">
-                        {room.status === 'playing' ? '게임 중' : '만석'}
-                      </button>
+                      <button disabled className="btn-disabled">만석</button>
                     )}
                   </div>
                 </div>
