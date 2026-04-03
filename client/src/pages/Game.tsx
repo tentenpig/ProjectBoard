@@ -50,6 +50,8 @@ export default function Game() {
   const [roundResult, setRoundResult] = useState<RoundEndResult | null>(null);
   const [allSelected, setAllSelected] = useState<{ playerId: number; card: Card; nickname?: string }[] | null>(null);
   const [readyStatus, setReadyStatus] = useState<{ ready: number[]; total: number } | null>(null);
+  const [penaltyToast, setPenaltyToast] = useState<{ nickname: string; points: number } | null>(null);
+  const [screenFlash, setScreenFlash] = useState(false);
   const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
@@ -68,6 +70,16 @@ export default function Game() {
 
     const handleGameEvent = (event: GameEvent) => {
       setEvents((prev) => [...prev, event]);
+      if (event.type === 'took_row' && event.takenCards) {
+        const points = event.takenCards.reduce((s, c) => s + c.bullHeads, 0);
+        const nickname = gameState?.players.find((p) => p.id === event.playerId)?.nickname || '???';
+        setPenaltyToast({ nickname, points });
+        if (event.playerId === user?.id) {
+          setScreenFlash(true);
+          setTimeout(() => setScreenFlash(false), 500);
+        }
+        setTimeout(() => setPenaltyToast(null), 2500);
+      }
     };
 
     const handleAllSelected = (plays: { playerId: number; card: Card; nickname?: string }[]) => {
@@ -158,6 +170,13 @@ export default function Game() {
 
   return (
     <div className="page-layout">
+    {screenFlash && <div className="penalty-flash" />}
+    {penaltyToast && (
+      <div className={`penalty-toast ${penaltyToast.nickname === user?.nickname ? 'penalty-mine' : ''}`}>
+        <span className="penalty-icon">🐂</span>
+        <span>{penaltyToast.nickname} +{penaltyToast.points} 벌점!</span>
+      </div>
+    )}
     <div className="page-main">
     <div className="game-container">
       <header className="game-header">
@@ -212,7 +231,10 @@ export default function Game() {
             className={`game-row ${isMyTurnToChoose ? 'chooseable' : ''}`}
             onClick={() => isMyTurnToChoose && chooseRow(rowIdx)}
           >
-            <div className="row-label">열 {rowIdx + 1}</div>
+            <div className="row-label">
+              <span>열 {rowIdx + 1}</span>
+              <span className="row-penalty">🐂 {row.reduce((sum, c) => sum + c.bullHeads, 0)}</span>
+            </div>
             <div className="row-cards">
               {row.map((card, cardIdx) => (
                 <div key={cardIdx} className={`card bull-${getBullClass(card.bullHeads)}`}>
@@ -233,14 +255,24 @@ export default function Game() {
       {gameState.phase === 'selecting' && (
         <div className="hand-area">
           {myPlayer?.hasSelected ? (
-            <div className="waiting-select">
-              <p>카드를 선택했습니다. 다른 플레이어를 기다리는 중...</p>
-              <div className="waiting-players">
-                {gameState.players.filter((p) => !p.hasSelected).map((p) => (
-                  <span key={p.id} className="waiting-name">{p.nickname}</span>
+            <>
+              <div className="waiting-select">
+                <p>카드를 선택했습니다. 다른 플레이어를 기다리는 중...</p>
+                <div className="waiting-players">
+                  {gameState.players.filter((p) => !p.hasSelected).map((p) => (
+                    <span key={p.id} className="waiting-name">{p.nickname}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="hand-cards hand-disabled">
+                {gameState.hand.map((card) => (
+                  <div key={card.number} className={`card bull-${getBullClass(card.bullHeads)}`}>
+                    <span className="card-number">{card.number}</span>
+                    <span className="card-bulls">{'🐂'.repeat(card.bullHeads)}</span>
+                  </div>
                 ))}
               </div>
-            </div>
+            </>
           ) : (
             <>
               <div className="hand-cards">

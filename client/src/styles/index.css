@@ -54,6 +54,54 @@ body {
   padding: 24px 24px 24px 0;
 }
 
+/* Penalty feedback */
+.penalty-flash {
+  position: fixed;
+  inset: 0;
+  background: rgba(166, 61, 47, 0.15);
+  pointer-events: none;
+  z-index: 200;
+  animation: flash-fade 0.5s ease-out forwards;
+}
+
+@keyframes flash-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.penalty-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 2px solid var(--warning);
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 201;
+  box-shadow: 0 4px 20px rgba(44, 36, 24, 0.15);
+  animation: toast-in 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.penalty-mine {
+  border-color: var(--danger);
+  background: #fdf0ee;
+}
+
+.penalty-icon {
+  font-size: 22px;
+}
+
+@keyframes toast-in {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .page-chat .chat-container {
   height: calc(100vh - 48px);
   position: sticky;
@@ -634,8 +682,17 @@ button {
 .row-label {
   font-size: 13px;
   color: var(--text-muted);
-  min-width: 40px;
+  min-width: 48px;
   font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.row-penalty {
+  font-size: 11px;
+  color: var(--warning);
 }
 
 .row-cards {
@@ -651,6 +708,11 @@ button {
   border-radius: 8px;
   text-align: center;
   border: 1px solid var(--border-light);
+}
+
+.hand-disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .hand-cards {
