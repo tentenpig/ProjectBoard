@@ -124,6 +124,39 @@ async function resolveCards(io: Server, room: Room) {
   }
 }
 
+function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
+  for (const [roomId, room] of rooms) {
+    const idx = room.players.findIndex((p) => p.id === user.id);
+    if (idx === -1) continue;
+
+    room.players.splice(idx, 1);
+    socket.leave(roomId);
+    socket.join('lobby');
+
+    if (room.players.length === 0) {
+      rooms.delete(roomId);
+      broadcastRoomList(io);
+      return;
+    }
+
+    // Transfer host
+    if (room.hostId === user.id) {
+      room.hostId = room.players[0].id;
+    }
+
+    // If game is in progress, abort it
+    if (room.gameState) {
+      room.gameState = null;
+      room.status = 'waiting';
+      io.to(roomId).emit('game:aborted', `${user.nickname} has left the game.`);
+    }
+
+    broadcastRoomState(io, room);
+    broadcastRoomList(io);
+    return;
+  }
+}
+
 export function setupSocket(io: Server) {
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -226,24 +259,7 @@ export function setupSocket(io: Server) {
 
     // Leave room
     socket.on('room:leave', () => {
-      for (const [roomId, room] of rooms) {
-        const idx = room.players.findIndex((p) => p.id === user.id);
-        if (idx !== -1) {
-          room.players.splice(idx, 1);
-          socket.leave(roomId);
-          socket.join('lobby');
-
-          if (room.players.length === 0) {
-            rooms.delete(roomId);
-          } else if (room.hostId === user.id) {
-            room.hostId = room.players[0].id;
-          }
-
-          broadcastRoomState(io, room);
-          broadcastRoomList(io);
-          break;
-        }
-      }
+      removeUserFromRoom(io, socket, user);
     });
 
     // Start game
@@ -351,25 +367,7 @@ export function setupSocket(io: Server) {
     socket.on('disconnect', () => {
       userSockets.delete(user.id);
       console.log(`Disconnected: ${user.nickname} (${user.id})`);
-
-      for (const [roomId, room] of rooms) {
-        const idx = room.players.findIndex((p) => p.id === user.id);
-        if (idx !== -1) {
-          room.players.splice(idx, 1);
-
-          if (room.players.length === 0) {
-            rooms.delete(roomId);
-          } else {
-            if (room.hostId === user.id) {
-              room.hostId = room.players[0].id;
-            }
-            broadcastRoomState(io, room);
-          }
-
-          broadcastRoomList(io);
-          break;
-        }
-      }
+      removeUserFromRoom(io, socket, user);
     });
   });
 }

@@ -83,11 +83,17 @@ export default function Game() {
       setSelectedCard(null);
     };
 
+    const handleAborted = () => {
+      alert('상대방이 나갔습니다. 로비로 돌아갑니다.');
+      navigate('/lobby');
+    };
+
     socket.on('game:state', handleGameState);
     socket.on('game:event', handleGameEvent);
     socket.on('game:all_selected', handleAllSelected);
     socket.on('game:round_end', handleRoundEnd);
     socket.on('game:new_round', handleNewRound);
+    socket.on('game:aborted', handleAborted);
 
     // Request current game state on mount
     if (roomId) {
@@ -101,6 +107,7 @@ export default function Game() {
       socket.off('game:all_selected', handleAllSelected);
       socket.off('game:round_end', handleRoundEnd);
       socket.off('game:new_round', handleNewRound);
+      socket.off('game:aborted', handleAborted);
     };
   }, [socket, roomId]);
 
@@ -126,6 +133,12 @@ export default function Game() {
     navigate('/lobby');
   };
 
+  const leaveGame = () => {
+    if (!socket) return;
+    socket.emit('room:leave');
+    navigate('/lobby');
+  };
+
   if (!gameState) {
     return <div className="loading">게임을 불러오는 중...</div>;
   }
@@ -137,6 +150,7 @@ export default function Game() {
   return (
     <div className="game-container">
       <header className="game-header">
+        <button onClick={leaveGame} className="btn-secondary btn-small">나가기</button>
         <div className="round-info">라운드 {gameState.round}</div>
         <div className="phase-info">
           {gameState.phase === 'selecting' && '카드를 선택하세요'}
@@ -207,22 +221,35 @@ export default function Game() {
       {/* Hand */}
       {gameState.phase === 'selecting' && (
         <div className="hand-area">
-          <div className="hand-cards">
-            {gameState.hand.map((card) => (
-              <div
-                key={card.number}
-                className={`card card-hand bull-${getBullClass(card.bullHeads)} ${selectedCard === card.number ? 'card-selected' : ''}`}
-                onClick={() => setSelectedCard(card.number)}
-              >
-                <span className="card-number">{card.number}</span>
-                <span className="card-bulls">{'🐂'.repeat(card.bullHeads)}</span>
+          {myPlayer?.hasSelected ? (
+            <div className="waiting-select">
+              <p>카드를 선택했습니다. 다른 플레이어를 기다리는 중...</p>
+              <div className="waiting-players">
+                {gameState.players.filter((p) => !p.hasSelected).map((p) => (
+                  <span key={p.id} className="waiting-name">{p.nickname}</span>
+                ))}
               </div>
-            ))}
-          </div>
-          {selectedCard !== null && (
-            <button onClick={playCard} className="btn-primary btn-play">
-              카드 내기 ({selectedCard})
-            </button>
+            </div>
+          ) : (
+            <>
+              <div className="hand-cards">
+                {gameState.hand.map((card) => (
+                  <div
+                    key={card.number}
+                    className={`card card-hand bull-${getBullClass(card.bullHeads)} ${selectedCard === card.number ? 'card-selected' : ''}`}
+                    onClick={() => setSelectedCard(card.number)}
+                  >
+                    <span className="card-number">{card.number}</span>
+                    <span className="card-bulls">{'🐂'.repeat(card.bullHeads)}</span>
+                  </div>
+                ))}
+              </div>
+              {selectedCard !== null && (
+                <button onClick={playCard} className="btn-primary btn-play">
+                  카드 내기 ({selectedCard})
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
