@@ -1,0 +1,97 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
+
+interface RoomState {
+  id: string;
+  name: string;
+  hostId: number;
+  gameType: string;
+  maxPlayers: number;
+  players: { id: number; nickname: string }[];
+  status: string;
+}
+
+export default function Room() {
+  const { roomId } = useParams<{ roomId: string }>();
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const { user } = useAuth();
+  const socket = useSocket();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('room:state', (state: RoomState) => {
+      setRoomState(state);
+    });
+
+    socket.on('game:started', () => {
+      navigate(`/game/${roomId}`);
+    });
+
+    socket.on('error', (msg: string) => {
+      alert(msg);
+    });
+
+    return () => {
+      socket.off('room:state');
+      socket.off('game:started');
+      socket.off('error');
+    };
+  }, [socket, roomId, navigate]);
+
+  const leaveRoom = () => {
+    if (!socket) return;
+    socket.emit('room:leave');
+    navigate('/lobby');
+  };
+
+  const startGame = () => {
+    if (!socket) return;
+    socket.emit('game:start');
+  };
+
+  if (!roomState) {
+    return <div className="loading">방 정보를 불러오는 중...</div>;
+  }
+
+  const isHost = user?.id === roomState.hostId;
+
+  return (
+    <div className="room-container">
+      <header className="room-header">
+        <button onClick={leaveRoom} className="btn-secondary">← 나가기</button>
+        <h2>{roomState.name}</h2>
+        <span className="game-badge">젝스님트</span>
+      </header>
+
+      <div className="room-content">
+        <div className="player-list">
+          <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
+          {roomState.players.map((p) => (
+            <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''}`}>
+              <span className="player-name">{p.nickname}</span>
+              {p.id === roomState.hostId && <span className="host-badge">방장</span>}
+            </div>
+          ))}
+        </div>
+
+        <div className="room-footer">
+          {isHost ? (
+            <button
+              onClick={startGame}
+              className="btn-primary btn-large"
+              disabled={roomState.players.length < 2}
+            >
+              {roomState.players.length < 2 ? '최소 2명이 필요합니다' : '게임 시작'}
+            </button>
+          ) : (
+            <p className="waiting-message">방장이 게임을 시작할 때까지 대기 중...</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
