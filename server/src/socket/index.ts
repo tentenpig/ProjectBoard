@@ -19,10 +19,12 @@ import {
 import {
   DaVinciState,
   initGame as initDaVinci,
+  placeJoker,
   drawTile,
   guess as daVinciGuess,
   continueGuessing,
   stopGuessing,
+  placeDrawnJoker,
   getPlayerView as getDaVinciPlayerView,
   getSpectatorView as getDaVinciSpectatorView,
 } from '../games/davinciCode/logic';
@@ -431,6 +433,15 @@ export function setupSocket(io: Server) {
 
           if (room.gameType === 'davinci-code') {
             room.davinciState = initDaVinci(playerInfos);
+
+            // Schedule auto-start after random 2-4s if no jokers need placement
+            const delay = 2000 + Math.random() * 2000;
+            setTimeout(() => {
+              if (room.davinciState && room.davinciState.phase === 'setup_jokers' && room.davinciState.pendingJokerPlayerIds.length === 0) {
+                room.davinciState.phase = 'drawing';
+                broadcastGameState(io, room);
+              }
+            }, delay);
           } else {
             room.gameState = initRound(playerInfos);
           }
@@ -527,6 +538,23 @@ export function setupSocket(io: Server) {
     });
 
     // ===== Da Vinci Code events =====
+    socket.on('davinci:place_joker', ({ jokerId, sortValue }: { jokerId: number; sortValue: number }) => {
+      for (const [, room] of rooms) {
+        if (room.davinciState && room.players.find((p) => p.id === user.id)) {
+          if (placeJoker(room.davinciState, user.id, jokerId, sortValue)) {
+            broadcastGameState(io, room);
+
+            // All jokers placed? Start immediately
+            if (room.davinciState.phase === 'setup_jokers' && room.davinciState.pendingJokerPlayerIds.length === 0) {
+              room.davinciState.phase = 'drawing';
+              broadcastGameState(io, room);
+            }
+          }
+          break;
+        }
+      }
+    });
+
     socket.on('davinci:draw', () => {
       for (const [, room] of rooms) {
         if (room.davinciState && room.players.find((p) => p.id === user.id)) {
@@ -569,10 +597,21 @@ export function setupSocket(io: Server) {
       }
     });
 
-    socket.on('davinci:stop', ({ jokerPosition }: { jokerPosition?: number } = {}) => {
+    socket.on('davinci:stop', () => {
       for (const [, room] of rooms) {
         if (room.davinciState && room.players.find((p) => p.id === user.id)) {
-          if (stopGuessing(room.davinciState, user.id, jokerPosition)) {
+          if (stopGuessing(room.davinciState, user.id)) {
+            broadcastGameState(io, room);
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('davinci:place_drawn_joker', ({ sortValue }: { sortValue: number }) => {
+      for (const [, room] of rooms) {
+        if (room.davinciState && room.players.find((p) => p.id === user.id)) {
+          if (placeDrawnJoker(room.davinciState, user.id, sortValue)) {
             broadcastGameState(io, room);
           }
           break;

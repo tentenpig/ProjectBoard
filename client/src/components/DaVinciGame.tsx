@@ -30,6 +30,8 @@ interface DaVinciStateView {
   drawnTile: any;
   lastGuessCorrect: boolean;
   winnerId: number | null;
+  needsJokerPlacement?: boolean;
+  drawnJokerRevealed?: boolean;
   spectating?: boolean;
 }
 
@@ -160,14 +162,20 @@ export default function DaVinciGame({ socket, gameState }: Props) {
             <button onClick={leaveGame} className="btn-secondary btn-small">나가기</button>
             <div className="round-info">다빈치 코드</div>
             <div className="phase-info">
-              {gameState.phase === 'game_over'
+              {gameState.phase === 'setup_jokers'
+                ? (gameState.needsJokerPlacement
+                  ? '조커 위치를 선택하세요'
+                  : '카드 정리 중...')
+                : gameState.phase === 'game_over'
                 ? `${gameState.players.find((p) => p.id === gameState.winnerId)?.nickname} 승리!`
                 : isSpectating
                 ? `${currentPlayer?.nickname}의 턴`
                 : isMyTurn
                 ? (gameState.phase === 'drawing' ? '타일을 뽑으세요'
                   : gameState.phase === 'guessing' ? '상대 타일을 추측하세요'
-                  : '계속 추측하거나 멈추세요')
+                  : gameState.phase === 'place_drawn_joker' ? '조커를 배치할 위치를 선택하세요'
+                  : gameState.phase === 'continue_or_stop' ? '계속 추측하거나 멈추세요'
+                  : '')
                 : `${currentPlayer?.nickname}의 턴...`
               }
             </div>
@@ -219,8 +227,21 @@ export default function DaVinciGame({ socket, gameState }: Props) {
             </div>
           )}
 
+          {/* Joker setup phase */}
+          {gameState.phase === 'setup_jokers' && !isSpectating && (
+            gameState.needsJokerPlacement ? (
+              <JokerSetup player={myPlayer} socket={socket} />
+            ) : (
+              <div className="dv-joker-setup">
+                <div className="dv-joker-waiting">
+                  <p>카드 정리 중...</p>
+                </div>
+              </div>
+            )
+          )}
+
           {/* Action area */}
-          {!isSpectating && isMyTurn && gameState.phase !== 'game_over' && (
+          {!isSpectating && isMyTurn && gameState.phase !== 'game_over' && gameState.phase !== 'setup_jokers' && (
             <div className="dv-actions">
               {gameState.phase === 'drawing' && (
                 <button onClick={handleDraw} className="btn-primary">
@@ -274,6 +295,15 @@ export default function DaVinciGame({ socket, gameState }: Props) {
                   <button onClick={handleStop} className="btn-secondary">멈추기 (타일 비공개 배치)</button>
                 </div>
               )}
+
+              {gameState.phase === 'place_drawn_joker' && (
+                <DrawnJokerPlacer
+                  player={myPlayer}
+                  drawnTile={gameState.drawnTile}
+                  revealed={gameState.drawnJokerRevealed || false}
+                  socket={socket}
+                />
+              )}
             </div>
           )}
 
@@ -300,6 +330,157 @@ export default function DaVinciGame({ socket, gameState }: Props) {
         </div>
       </div>
       <ChatPanel channel={roomId!} />
+    </div>
+  );
+}
+
+function JokerSetup({ player, socket }: {
+  player: PlayerView | undefined;
+  socket: Socket;
+}) {
+  const [activeJokerId, setActiveJokerId] = useState<number | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+
+  if (!player) return null;
+
+  const myJokers = player.tiles.filter((t) => t.joker);
+  const nonJokerTiles = player.tiles.filter((t) => !t.joker);
+
+  // If no joker selected yet, pick the first one
+  const currentJoker = myJokers.find((j) => j.id === activeJokerId) || myJokers[0];
+  if (!currentJoker) return null;
+  if (activeJokerId === null && currentJoker) {
+    setTimeout(() => setActiveJokerId(currentJoker.id), 0);
+  }
+
+  // Build slot values: before first tile, between each pair, after last tile
+  // Each slot's sortValue determines where the joker will be inserted
+  const slots: number[] = [];
+  if (nonJokerTiles.length === 0) {
+    slots.push(5); // arbitrary middle
+  } else {
+    // Before first
+    slots.push(nonJokerTiles[0].number! - 0.5);
+    // Between each pair
+    for (let i = 0; i < nonJokerTiles.length - 1; i++) {
+      slots.push((nonJokerTiles[i].number! + nonJokerTiles[i + 1].number!) / 2);
+    }
+    // After last
+    slots.push(nonJokerTiles[nonJokerTiles.length - 1].number! + 0.5);
+  }
+
+  const handleConfirm = () => {
+    if (selectedSlot === null) return;
+    socket.emit('davinci:place_joker', { jokerId: currentJoker.id, sortValue: slots[selectedSlot] });
+    setSelectedSlot(null);
+    setActiveJokerId(null);
+  };
+
+  return (
+    <div className="dv-joker-setup">
+      <h3>조커 위치를 선택하세요</h3>
+      <p className="dv-joker-hint">카드 사이의 빈 칸을 눌러 조커를 배치할 위치를 선택하세요.</p>
+
+      <div className="dv-joker-board">
+        {/* Slot before first card */}
+        <div
+          className={`dv-joker-slot ${selectedSlot === 0 ? 'slot-selected' : ''}`}
+          onClick={() => setSelectedSlot(0)}
+        >
+          <div className={`dv-slot-marker ${currentJoker.color}`}>★</div>
+        </div>
+
+        {nonJokerTiles.map((tile, i) => (
+          <div key={tile.id} className="dv-joker-board-group">
+            <div className={`dv-tile ${tile.color} revealed dv-tile-fixed`}>
+              <span className="dv-tile-number">{tile.number}</span>
+            </div>
+            {/* Slot after this card */}
+            <div
+              className={`dv-joker-slot ${selectedSlot === i + 1 ? 'slot-selected' : ''}`}
+              onClick={() => setSelectedSlot(i + 1)}
+            >
+              <div className={`dv-slot-marker ${currentJoker.color}`}>★</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        className="btn-primary"
+        disabled={selectedSlot === null}
+        onClick={handleConfirm}
+        style={{ marginTop: 12 }}
+      >
+        확정
+      </button>
+    </div>
+  );
+}
+
+function DrawnJokerPlacer({ player, drawnTile, revealed, socket }: {
+  player: PlayerView | undefined;
+  drawnTile: any;
+  revealed: boolean;
+  socket: Socket;
+}) {
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+
+  if (!player || !drawnTile) return null;
+
+  // Non-joker tiles in current hand (for slot reference)
+  const nonJokerTiles = player.tiles.filter((t) => !t.joker && t.number !== null);
+
+  const slots: number[] = [];
+  if (nonJokerTiles.length === 0) {
+    slots.push(5);
+  } else {
+    slots.push(nonJokerTiles[0].number! - 0.5);
+    for (let i = 0; i < nonJokerTiles.length - 1; i++) {
+      slots.push((nonJokerTiles[i].number! + nonJokerTiles[i + 1].number!) / 2);
+    }
+    slots.push(nonJokerTiles[nonJokerTiles.length - 1].number! + 0.5);
+  }
+
+  const handleConfirm = () => {
+    if (selectedSlot === null) return;
+    socket.emit('davinci:place_drawn_joker', { sortValue: slots[selectedSlot] });
+  };
+
+  return (
+    <div className="dv-joker-setup">
+      <h3>{revealed ? '조커가 공개되었습니다! 배치할 위치를 선택하세요' : '뽑은 조커를 배치할 위치를 선택하세요'}</h3>
+      <div className="dv-joker-board">
+        <div
+          className={`dv-joker-slot ${selectedSlot === 0 ? 'slot-selected' : ''}`}
+          onClick={() => setSelectedSlot(0)}
+        >
+          <div className={`dv-slot-marker ${drawnTile.color}`}>★</div>
+        </div>
+
+        {nonJokerTiles.map((tile, i) => (
+          <div key={tile.id} className="dv-joker-board-group">
+            <div className={`dv-tile ${tile.color} revealed dv-tile-fixed`}>
+              <span className="dv-tile-number">{tile.number}</span>
+            </div>
+            <div
+              className={`dv-joker-slot ${selectedSlot === i + 1 ? 'slot-selected' : ''}`}
+              onClick={() => setSelectedSlot(i + 1)}
+            >
+              <div className={`dv-slot-marker ${drawnTile.color}`}>★</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        className="btn-primary"
+        disabled={selectedSlot === null}
+        onClick={handleConfirm}
+        style={{ marginTop: 12 }}
+      >
+        확정
+      </button>
     </div>
   );
 }

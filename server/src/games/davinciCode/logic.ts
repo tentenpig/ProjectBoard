@@ -17,7 +17,9 @@ export interface DaVinciState {
   players: DaVinciPlayer[];
   pool: Tile[];
   currentPlayerId: number;
-  phase: 'drawing' | 'guessing' | 'continue_or_stop' | 'game_over';
+  phase: 'setup_jokers' | 'drawing' | 'guessing' | 'continue_or_stop' | 'place_drawn_joker' | 'game_over';
+  pendingJokerPlayerIds: number[];
+  drawnJokerRevealed: boolean;
   drawnTile: Tile | null;
   lastGuessCorrect: boolean;
   winnerId: number | null;
@@ -92,17 +94,49 @@ export function initGame(playerInfos: { id: number; nickname: string }[]): DaVin
 
   const turnOrder = players.map((p) => p.id);
 
+  // Check which players have jokers that need positioning
+  const pendingJokerPlayerIds = players
+    .filter((p) => p.tiles.some((t) => t.joker))
+    .map((p) => p.id);
+
   return {
     players,
     pool,
     currentPlayerId: turnOrder[0],
-    phase: 'drawing',
+    phase: 'setup_jokers' as const,
+    pendingJokerPlayerIds,
     drawnTile: null,
+    drawnJokerRevealed: false,
     lastGuessCorrect: false,
     winnerId: null,
     turnOrder,
     turnIndex: 0,
   };
+}
+
+export function placeJoker(state: DaVinciState, playerId: number, jokerId: number, sortValue: number): boolean {
+  if (state.phase !== 'setup_jokers') return false;
+  if (!state.pendingJokerPlayerIds.includes(playerId)) return false;
+
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player) return false;
+
+  const joker = player.tiles.find((t) => t.id === jokerId && t.joker);
+  if (!joker) return false;
+
+  // Clamp sortValue to valid range (can be placed as if it were 0-12, with .5 increments for between)
+  (joker as any).sortValue = Math.max(-0.5, Math.min(sortValue, 12));
+  player.tiles = sortTiles(player.tiles);
+
+  // Check if this player still has unpositioned jokers
+  const hasUnpositioned = player.tiles.some((t) => t.joker && (t as any).sortValue === undefined);
+  if (!hasUnpositioned) {
+    state.pendingJokerPlayerIds = state.pendingJokerPlayerIds.filter((id) => id !== playerId);
+  }
+
+  // Note: phase transition to 'drawing' is handled by the socket layer with a random delay
+
+  return true;
 }
 
 export function drawTile(state: DaVinciState, playerId: number): boolean {
@@ -166,8 +200,13 @@ export function guess(
   state.lastGuessCorrect = false;
 
   if (state.drawnTile) {
-    // Reveal drawn tile and place it
     state.drawnTile.revealed = true;
+    if (state.drawnTile.joker) {
+      // Joker needs position selection before placement
+      state.drawnJokerRevealed = true;
+      state.phase = 'place_drawn_joker';
+      return { correct: false, targetTile: tile };
+    }
     const player = state.players.find((p) => p.id === playerId)!;
     player.tiles.push(state.drawnTile);
     player.tiles = sortTiles(player.tiles);
@@ -201,18 +240,36 @@ export function continueGuessing(state: DaVinciState, playerId: number): boolean
   return true;
 }
 
-export function stopGuessing(state: DaVinciState, playerId: number, jokerPosition?: number): boolean {
+export function stopGuessing(state: DaVinciState, playerId: number): boolean {
   if (state.phase !== 'continue_or_stop' || state.currentPlayerId !== playerId) return false;
 
   if (state.drawnTile) {
-    const player = state.players.find((p) => p.id === playerId)!;
-    if (state.drawnTile.joker && jokerPosition !== undefined) {
-      (state.drawnTile as any).sortValue = jokerPosition;
+    if (state.drawnTile.joker) {
+      // Need to select joker position before placing
+      state.drawnJokerRevealed = false;
+      state.phase = 'place_drawn_joker';
+      return true;
     }
+    const player = state.players.find((p) => p.id === playerId)!;
     player.tiles.push(state.drawnTile);
     player.tiles = sortTiles(player.tiles);
     state.drawnTile = null;
   }
+
+  advanceTurn(state);
+  return true;
+}
+
+export function placeDrawnJoker(state: DaVinciState, playerId: number, sortValue: number): boolean {
+  if (state.phase !== 'place_drawn_joker' || state.currentPlayerId !== playerId) return false;
+  if (!state.drawnTile || !state.drawnTile.joker) return false;
+
+  (state.drawnTile as any).sortValue = Math.max(-0.5, Math.min(sortValue, 12));
+  const player = state.players.find((p) => p.id === playerId)!;
+  player.tiles.push(state.drawnTile);
+  player.tiles = sortTiles(player.tiles);
+  state.drawnTile = null;
+  state.drawnJokerRevealed = false;
 
   advanceTurn(state);
   return true;
@@ -262,6 +319,8 @@ export function getPlayerView(state: DaVinciState, playerId: number) {
       : state.drawnTile ? { id: state.drawnTile.id, color: state.drawnTile.color } : null,
     lastGuessCorrect: state.lastGuessCorrect,
     winnerId: state.winnerId,
+    needsJokerPlacement: state.phase === 'setup_jokers' && state.pendingJokerPlayerIds.includes(playerId),
+    drawnJokerRevealed: state.drawnJokerRevealed,
   };
 }
 
