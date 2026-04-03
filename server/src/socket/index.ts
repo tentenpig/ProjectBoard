@@ -355,6 +355,27 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // Update room settings (host only)
+    socket.on('room:update_settings', ({ name, maxPlayers }: { name?: string; maxPlayers?: number }) => {
+      for (const [, room] of rooms) {
+        if (room.hostId !== user.id || room.status !== 'waiting') continue;
+        if (!room.players.find((p) => p.id === user.id)) continue;
+
+        if (name !== undefined && name.trim().length > 0) {
+          room.name = name.trim();
+        }
+
+        if (maxPlayers !== undefined) {
+          const clamped = Math.min(Math.max(maxPlayers, room.players.length, 2), 10);
+          room.maxPlayers = clamped;
+        }
+
+        broadcastRoomState(io, room);
+        broadcastRoomList(io);
+        break;
+      }
+    });
+
     // Leave room
     socket.on('room:leave', () => {
       removeUserFromRoom(io, socket, user);

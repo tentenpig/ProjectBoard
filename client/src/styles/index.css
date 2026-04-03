@@ -614,6 +614,32 @@ button {
   font-weight: 500;
 }
 
+.room-settings {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.room-settings h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.room-settings input,
+.room-settings select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
 .room-footer {
   text-align: center;
 }

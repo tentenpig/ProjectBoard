@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -82,6 +82,16 @@ export default function Room() {
           </header>
 
           <div className="room-content">
+            {isHost && (
+              <RoomSettings
+                name={roomState.name}
+                maxPlayers={roomState.maxPlayers}
+                minPlayers={Math.max(roomState.players.length, 2)}
+                currentPlayers={roomState.players.length}
+                socket={socket!}
+              />
+            )}
+
             <div className="player-list">
               <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
               {roomState.players.map((p) => (
@@ -109,6 +119,64 @@ export default function Room() {
         </div>
       </div>
       <ChatPanel channel={roomId!} />
+    </div>
+  );
+}
+
+function RoomSettings({ name, maxPlayers, minPlayers, currentPlayers, socket }: {
+  name: string;
+  maxPlayers: number;
+  minPlayers: number;
+  currentPlayers: number;
+  socket: import('socket.io-client').Socket;
+}) {
+  const [editName, setEditName] = useState(name);
+  const [editMax, setEditMax] = useState(maxPlayers);
+  const [showSettings, setShowSettings] = useState(false);
+  const prevNameRef = useRef(name);
+  const prevMaxRef = useRef(maxPlayers);
+
+  // Sync with server state
+  if (name !== prevNameRef.current) { prevNameRef.current = name; setEditName(name); }
+  if (maxPlayers !== prevMaxRef.current) { prevMaxRef.current = maxPlayers; setEditMax(maxPlayers); }
+
+  const save = () => {
+    socket.emit('room:update_settings', { name: editName, maxPlayers: editMax });
+    setShowSettings(false);
+  };
+
+  if (!showSettings) {
+    return (
+      <button onClick={() => setShowSettings(true)} className="btn-secondary btn-small" style={{ marginBottom: 12 }}>
+        방 설정
+      </button>
+    );
+  }
+
+  return (
+    <div className="room-settings">
+      <h3>방 설정</h3>
+      <div className="form-group">
+        <label>방 이름</label>
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          maxLength={30}
+        />
+      </div>
+      <div className="form-group">
+        <label>최대 인원 (현재 {currentPlayers}명 참가 중)</label>
+        <select value={editMax} onChange={(e) => setEditMax(Number(e.target.value))}>
+          {Array.from({ length: 10 - minPlayers + 1 }, (_, i) => minPlayers + i).map((n) => (
+            <option key={n} value={n}>{n}명</option>
+          ))}
+        </select>
+      </div>
+      <div className="modal-actions">
+        <button onClick={() => { setShowSettings(false); setEditName(name); setEditMax(maxPlayers); }} className="btn-secondary">취소</button>
+        <button onClick={save} className="btn-primary">저장</button>
+      </div>
     </div>
   );
 }
