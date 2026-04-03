@@ -19,5 +19,8 @@
   "description": "",
   "dependencies": {
     "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.40.0"
   }
 }
