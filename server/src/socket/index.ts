@@ -37,6 +37,16 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 const userSockets = new Map<number, Socket>();
+const chatHistory = new Map<string, { nickname: string; text: string; timestamp: number }[]>();
+
+const CHAT_HISTORY_LIMIT = 20;
+
+function addChatMessage(channel: string, msg: { nickname: string; text: string; timestamp: number }) {
+  if (!chatHistory.has(channel)) chatHistory.set(channel, []);
+  const history = chatHistory.get(channel)!;
+  history.push(msg);
+  if (history.length > CHAT_HISTORY_LIMIT) history.shift();
+}
 
 function broadcastRoomList(io: Server) {
   const roomList = Array.from(rooms.values()).filter((r) => r.status === 'waiting').map((r) => ({
@@ -378,14 +388,21 @@ export function setupSocket(io: Server) {
     });
 
     // Chat
+    socket.on('chat:history', (channel: string) => {
+      const history = chatHistory.get(channel) || [];
+      socket.emit('chat:history', history);
+    });
+
     socket.on('chat:send', ({ channel, text }: { channel: string; text: string }) => {
       if (!text || text.length > 200) return;
       const msg = { nickname: user.nickname, text, timestamp: Date.now() };
       if (channel === 'lobby') {
+        addChatMessage('lobby', msg);
         io.to('lobby').emit('chat:message', msg);
       } else {
         const room = rooms.get(channel);
         if (room && room.players.find((p) => p.id === user.id)) {
+          addChatMessage(channel, msg);
           io.to(channel).emit('chat:message', msg);
         }
       }

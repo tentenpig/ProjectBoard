@@ -19,29 +19,28 @@ export default function Chat({ channel }: ChatProps) {
   const socket = useSocket();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const prevChannelRef = useRef(channel);
-
   const handleMessage = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev.slice(-100), msg]);
   }, []);
 
   useEffect(() => {
-    // Clear messages when channel changes
-    if (prevChannelRef.current !== channel) {
-      setMessages([]);
-      prevChannelRef.current = channel;
-    }
-  }, [channel]);
-
-  useEffect(() => {
     if (!socket) return;
 
+    const handleHistory = (history: ChatMessage[]) => {
+      setMessages(history);
+    };
+
     socket.on('chat:message', handleMessage);
+    socket.on('chat:history', handleHistory);
+
+    // Request chat history on mount / channel change
+    socket.emit('chat:history', channel);
 
     return () => {
       socket.off('chat:message', handleMessage);
+      socket.off('chat:history', handleHistory);
     };
-  }, [socket, handleMessage]);
+  }, [socket, channel, handleMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
