@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -53,6 +53,9 @@ export default function Game() {
   const [penaltyToast, setPenaltyToast] = useState<{ nickname: string; points: number } | null>(null);
   const [screenFlash, setScreenFlash] = useState(false);
   const [lastPlacement, setLastPlacement] = useState<{ playerId: number; nickname: string; card: Card; rowIndex: number; type: string } | null>(null);
+  const [flyingCard, setFlyingCard] = useState<{ card: Card; from: DOMRect; to: DOMRect } | null>(null);
+  const revealCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
@@ -76,6 +79,27 @@ export default function Game() {
         const nickname = gameState?.players.find((p) => p.id === event.playerId)?.nickname || '???';
         setLastPlacement({ playerId: event.playerId, nickname, card: event.card, rowIndex: event.rowIndex, type: event.type });
         setTimeout(() => setLastPlacement(null), 750);
+
+        // Trigger flying card animation
+        const sourceEl = revealCardRefs.current.get(event.card.number);
+        const rowEl = rowRefs.current.get(event.rowIndex);
+        if (sourceEl && rowEl) {
+          const from = sourceEl.getBoundingClientRect();
+          // Find the last card in the row to position next to it
+          const rowCards = rowEl.querySelectorAll('.row-cards > .card:not(.card-empty)');
+          const lastCard = rowCards[rowCards.length - 1];
+          let toRect: { x: number; y: number };
+          if (lastCard) {
+            const lastRect = lastCard.getBoundingClientRect();
+            toRect = { x: lastRect.x + lastRect.width + 4, y: lastRect.y };
+          } else {
+            const rowCardsEl = rowEl.querySelector('.row-cards');
+            const rc = rowCardsEl!.getBoundingClientRect();
+            toRect = { x: rc.x, y: rc.y };
+          }
+          setFlyingCard({ card: event.card, from, to: { x: toRect.x, y: toRect.y } as DOMRect });
+          setTimeout(() => setFlyingCard(null), 500);
+        }
       }
 
       if (event.type === 'took_row' && event.takenCards) {
@@ -179,6 +203,22 @@ export default function Game() {
   return (
     <div className="page-layout">
     {screenFlash && <div className="penalty-flash" />}
+    {flyingCard && (
+      <div
+        className={`flying-card card bull-${getBullClass(flyingCard.card.bullHeads)}`}
+        style={{
+          '--from-x': `${flyingCard.from.x}px`,
+          '--from-y': `${flyingCard.from.y}px`,
+          '--to-x': `${flyingCard.to.x}px`,
+          '--to-y': `${flyingCard.to.y}px`,
+          '--from-w': `${flyingCard.from.width}px`,
+          '--from-h': `${flyingCard.from.height}px`,
+        } as React.CSSProperties}
+      >
+        <span className="card-number">{flyingCard.card.number}</span>
+        <span className="card-bulls">{'🐂'.repeat(flyingCard.card.bullHeads)}</span>
+      </div>
+    )}
     {penaltyToast && (
       <div className={`penalty-toast ${penaltyToast.nickname === user?.nickname ? 'penalty-mine' : ''}`}>
         <span className="penalty-icon">🐂</span>
@@ -217,35 +257,32 @@ export default function Game() {
       </div>
 
       {/* All selected cards reveal */}
-      {allSelected && (
-        <div className="selected-cards-reveal">
-          {allSelected.map((play) => (
-            <div key={play.playerId} className="selected-play">
-              <span className="play-nickname">{play.nickname}</span>
-              <div className={`card card-small bull-${getBullClass(play.card.bullHeads)}`}>
-                <span className="card-number">{play.card.number}</span>
-                <span className="card-bulls">{'🐂'.repeat(play.card.bullHeads)}</span>
+      {allSelected && (() => {
+        const placedCards = new Set(events.filter(e => e.type === 'placed' || e.type === 'took_row').map(e => e.card.number));
+        return (
+          <div className="selected-cards-reveal">
+            {allSelected.map((play) => (
+              <div key={play.playerId} className={`selected-play ${placedCards.has(play.card.number) ? 'play-done' : ''}`}>
+                <span className="play-nickname">{play.nickname}</span>
+                <div
+                  ref={(el) => { if (el) revealCardRefs.current.set(play.card.number, el); }}
+                  className={`card card-small bull-${getBullClass(play.card.bullHeads)}`}
+                >
+                  <span className="card-number">{play.card.number}</span>
+                  <span className="card-bulls">{'🐂'.repeat(play.card.bullHeads)}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Placement banner */}
-      {lastPlacement && (
-        <div className={`placement-banner ${lastPlacement.type === 'took_row' ? 'placement-took' : ''}`}>
-          <span className="placement-name">{lastPlacement.nickname}</span>
-          <span>→ 열 {lastPlacement.rowIndex + 1}에</span>
-          <span className={`placement-card bull-${getBullClass(lastPlacement.card.bullHeads)}`}>{lastPlacement.card.number}</span>
-          <span>{lastPlacement.type === 'took_row' ? '배치 (열 회수!)' : '배치'}</span>
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Rows */}
       <div className="game-rows">
         {gameState.rows.map((row, rowIdx) => (
           <div
             key={rowIdx}
+            ref={(el) => { if (el) rowRefs.current.set(rowIdx, el); }}
             className={`game-row ${isMyTurnToChoose ? 'chooseable' : ''} ${lastPlacement?.rowIndex === rowIdx ? 'row-highlight' : ''}`}
             onClick={() => isMyTurnToChoose && chooseRow(rowIdx)}
           >
@@ -255,7 +292,7 @@ export default function Game() {
             </div>
             <div className="row-cards">
               {row.map((card, cardIdx) => (
-                <div key={cardIdx} className={`card bull-${getBullClass(card.bullHeads)}`}>
+                <div key={cardIdx} className={`card bull-${getBullClass(card.bullHeads)} ${lastPlacement?.card.number === card.number ? 'card-just-placed' : ''}`}>
                   <span className="card-number">{card.number}</span>
                   <span className="card-bulls">{'🐂'.repeat(card.bullHeads)}</span>
                 </div>

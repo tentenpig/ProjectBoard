@@ -673,66 +673,68 @@ button {
   border-color: var(--bull-7);
 }
 
-/* Placement banner */
-.placement-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-card);
-  border: 1.5px solid var(--bull-1);
-  border-radius: 8px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  animation: banner-in 0.3s ease-out;
+/* Flying card animation */
+.flying-card {
+  position: fixed;
+  z-index: 300;
+  width: 64px;
+  height: 88px;
+  pointer-events: none;
+  left: var(--from-x);
+  top: var(--from-y);
+  width: var(--from-w);
+  height: var(--from-h);
+  animation: card-fly 0.45s ease-in-out forwards;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
-.placement-banner.placement-took {
-  border-color: var(--danger);
-  background: #fdf0ee;
+@keyframes card-fly {
+  0% {
+    left: var(--from-x);
+    top: var(--from-y);
+    width: var(--from-w);
+    height: var(--from-h);
+    opacity: 1;
+  }
+  80% {
+    left: var(--to-x);
+    top: var(--to-y);
+    width: 64px;
+    height: 88px;
+    opacity: 1;
+  }
+  100% {
+    left: var(--to-x);
+    top: var(--to-y);
+    width: 64px;
+    height: 88px;
+    opacity: 0;
+    box-shadow: 0 0 20px 8px rgba(255, 255, 255, 0.6);
+  }
 }
 
-.placement-name {
-  font-weight: 700;
-  color: var(--accent);
+/* Placed card in reveal list - greyed out */
+.selected-play.play-done {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+  transition: opacity 0.4s, filter 0.4s;
 }
 
-.placement-card {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
+/* Just placed card glow in row */
+.card-just-placed {
+  box-shadow: 0 0 14px 4px rgba(255, 255, 255, 0.7);
+  animation: card-glow 0.6s ease-out;
 }
 
-.placement-card.bull-1 { background: var(--bull-1); }
-.placement-card.bull-2 { background: var(--bull-2); }
-.placement-card.bull-3 { background: var(--bull-3); }
-.placement-card.bull-5 { background: var(--bull-5); }
-.placement-card.bull-7 { background: var(--bull-7); }
-
-@keyframes banner-in {
-  0% { opacity: 0; transform: translateY(-8px); }
-  100% { opacity: 1; transform: translateY(0); }
+@keyframes card-glow {
+  0% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+  40% { box-shadow: 0 0 20px 6px rgba(255, 255, 255, 0.9); }
+  100% { box-shadow: 0 0 14px 4px rgba(255, 255, 255, 0.7); }
 }
 
-/* Row highlight */
+/* Row highlight when card placed */
 .row-highlight {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 12px rgba(174, 86, 48, 0.2);
-  animation: row-pulse 0.5s ease-out;
-}
-
-@keyframes row-pulse {
-  0% { box-shadow: 0 0 0 rgba(174, 86, 48, 0); }
-  50% { box-shadow: 0 0 20px rgba(174, 86, 48, 0.3); }
-  100% { box-shadow: 0 0 12px rgba(174, 86, 48, 0.2); }
 }
 
 /* Game rows */
