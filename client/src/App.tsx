@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Lobby from './pages/Lobby';
 import Room from './pages/Room';
 import Game from './pages/Game';
@@ -13,10 +12,7 @@ function AppRoutes() {
   return (
     <Routes>
       {!token ? (
-        <>
-          <Route path="/register" element={<Register />} />
-          <Route path="*" element={<Login />} />
-        </>
+        <Route path="*" element={<Login />} />
       ) : (
         <>
           <Route path="/lobby" element={<Lobby />} />

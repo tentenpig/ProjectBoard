@@ -1,41 +1,12 @@
-version: '3.8'
-
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: projectboard-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: projectboard
-      MYSQL_USER: appuser
-      MYSQL_PASSWORD: apppassword
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   server:
     build: ./server
     container_name: projectboard-server
     ports:
       - "3001:3001"
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: appuser
-      DB_PASSWORD: apppassword
-      DB_NAME: projectboard
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       PORT: 3001
-    depends_on:
-      mysql:
-        condition: service_healthy
     volumes:
       - ./server/src:/app/src
 
@@ -44,12 +15,7 @@ services:
     container_name: projectboard-client
     ports:
       - "5173:5173"
-    environment:
-      VITE_SERVER_URL: http://localhost:3001
     depends_on:
       - server
     volumes:
       - ./client/src:/app/src
-
-volumes:
-  mysql_data:

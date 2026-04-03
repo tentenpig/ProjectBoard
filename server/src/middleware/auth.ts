@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
 export interface AuthRequest extends Request {
-  user?: { id: number; username: string; nickname: string };
+  user?: { id: number; nickname: string };
 }
 
 export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
@@ -16,7 +16,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; nickname: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; nickname: string };
     req.user = decoded;
     next();
   } catch {

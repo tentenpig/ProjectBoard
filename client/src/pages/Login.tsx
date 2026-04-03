@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const SERVER_URL = `http://${window.location.hostname}:3001`;
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -15,11 +14,13 @@ export default function Login() {
     e.preventDefault();
     setError('');
 
+    if (!nickname.trim()) return;
+
     try {
-      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
+      const res = await fetch(`${SERVER_URL}/api/auth/enter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ nickname: nickname.trim() }),
       });
 
       const data = await res.json();
@@ -40,28 +41,19 @@ export default function Login() {
     <div className="auth-container">
       <div className="auth-card">
         <h1>네온 보드게임</h1>
-        <h2>로그인</h2>
+        <h2>닉네임을 입력하고 입장하세요</h2>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
-            placeholder="아이디"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            placeholder="닉네임"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            maxLength={20}
+            autoFocus
           />
           {error && <p className="error">{error}</p>}
-          <button type="submit">로그인</button>
+          <button type="submit" className="btn-primary">입장</button>
         </form>
-        <p className="auth-link">
-          계정이 없으신가요? <Link to="/register">회원가입</Link>
-        </p>
       </div>
     </div>
   );

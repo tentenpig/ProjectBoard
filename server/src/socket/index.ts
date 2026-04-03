@@ -20,7 +20,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
 interface UserInfo {
   id: number;
-  username: string;
   nickname: string;
 }
 
