@@ -4,6 +4,7 @@ import {
   GameState,
   initRound,
   selectCard,
+  unselectCard,
   allPlayersSelected,
   beginResolve,
   resolveNextCard,
@@ -130,10 +131,30 @@ async function resolveCards(io: Server, room: Room) {
       room.gameState.phase = 'selecting';
       room.gameState.sortedPlays = [];
       room.gameState.currentResolveIndex = 0;
+      autoSelectIfLastCard(io, room);
       broadcastGameState(io, room);
       return;
     }
   }
+}
+
+function autoSelectIfLastCard(io: Server, room: Room) {
+  if (!room.gameState || room.gameState.phase !== 'selecting') return;
+  const allOneCard = room.gameState.players.every((p) => p.hand.length === 1);
+  if (!allOneCard) return;
+
+  // Auto-select the last card for every player
+  for (const player of room.gameState.players) {
+    player.selectedCard = player.hand[0];
+  }
+
+  beginResolve(room.gameState);
+  io.to(room.id).emit('game:all_selected', room.gameState.sortedPlays.map((sp) => ({
+    playerId: sp.playerId,
+    card: sp.card,
+    nickname: room.players.find((p) => p.id === sp.playerId)?.nickname,
+  })));
+  setTimeout(() => resolveCards(io, room), 1500);
 }
 
 function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
@@ -314,6 +335,18 @@ export function setupSocket(io: Server) {
 
               setTimeout(() => resolveCards(io, room), 1500);
             }
+          }
+          break;
+        }
+      }
+    });
+
+    // Unselect card
+    socket.on('game:unselect_card', () => {
+      for (const [, room] of rooms) {
+        if (room.gameState && room.players.find((p) => p.id === user.id)) {
+          if (unselectCard(room.gameState, user.id)) {
+            broadcastGameState(io, room);
           }
           break;
         }

@@ -54,8 +54,10 @@ export default function Game() {
   const [screenFlash, setScreenFlash] = useState(false);
   const [lastPlacement, setLastPlacement] = useState<{ playerId: number; nickname: string; card: Card; rowIndex: number; type: string } | null>(null);
   const [flyingCard, setFlyingCard] = useState<{ card: Card; from: DOMRect; to: DOMRect } | null>(null);
+  const [myPlayedCard, setMyPlayedCard] = useState<number | null>(null);
   const revealCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const gameStateRef = useRef(gameState);
   const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
@@ -65,10 +67,12 @@ export default function Game() {
 
     const handleGameState = (state: GameStateView) => {
       console.log('[Game] game:state received, phase:', state.phase);
+      gameStateRef.current = state;
       setGameState(state);
       if (state.phase === 'selecting') {
         setEvents([]);
         setAllSelected(null);
+        setMyPlayedCard(null);
       }
     };
 
@@ -76,7 +80,7 @@ export default function Game() {
       setEvents((prev) => [...prev, event]);
 
       if ((event.type === 'placed' || event.type === 'took_row') && event.rowIndex !== undefined) {
-        const nickname = gameState?.players.find((p) => p.id === event.playerId)?.nickname || '???';
+        const nickname = gameStateRef.current?.players.find((p) => p.id === event.playerId)?.nickname || '???';
         setLastPlacement({ playerId: event.playerId, nickname, card: event.card, rowIndex: event.rowIndex, type: event.type });
         setTimeout(() => setLastPlacement(null), 750);
 
@@ -85,17 +89,23 @@ export default function Game() {
         const rowEl = rowRefs.current.get(event.rowIndex);
         if (sourceEl && rowEl) {
           const from = sourceEl.getBoundingClientRect();
-          // Find the last card in the row to position next to it
-          const rowCards = rowEl.querySelectorAll('.row-cards > .card:not(.card-empty)');
-          const lastCard = rowCards[rowCards.length - 1];
+          const rowCardsEl = rowEl.querySelector('.row-cards')!;
           let toRect: { x: number; y: number };
-          if (lastCard) {
-            const lastRect = lastCard.getBoundingClientRect();
-            toRect = { x: lastRect.x + lastRect.width + 4, y: lastRect.y };
-          } else {
-            const rowCardsEl = rowEl.querySelector('.row-cards');
-            const rc = rowCardsEl!.getBoundingClientRect();
+          if (event.type === 'took_row') {
+            // Row gets cleared, card goes to first slot
+            const rc = rowCardsEl.getBoundingClientRect();
             toRect = { x: rc.x, y: rc.y };
+          } else {
+            // Normal placement: next to the last card
+            const rowCards = rowEl.querySelectorAll('.row-cards > .card:not(.card-empty)');
+            const lastCard = rowCards[rowCards.length - 1];
+            if (lastCard) {
+              const lastRect = lastCard.getBoundingClientRect();
+              toRect = { x: lastRect.x + lastRect.width + 4, y: lastRect.y };
+            } else {
+              const rc = rowCardsEl.getBoundingClientRect();
+              toRect = { x: rc.x, y: rc.y };
+            }
           }
           setFlyingCard({ card: event.card, from, to: { x: toRect.x, y: toRect.y } as DOMRect });
           setTimeout(() => setFlyingCard(null), 500);
@@ -104,7 +114,7 @@ export default function Game() {
 
       if (event.type === 'took_row' && event.takenCards) {
         const points = event.takenCards.reduce((s, c) => s + c.bullHeads, 0);
-        const nickname = gameState?.players.find((p) => p.id === event.playerId)?.nickname || '???';
+        const nickname = gameStateRef.current?.players.find((p) => p.id === event.playerId)?.nickname || '???';
         setPenaltyToast({ nickname, points });
         if (event.playerId === user?.id) {
           setScreenFlash(true);
@@ -167,8 +177,15 @@ export default function Game() {
   const playCard = useCallback(() => {
     if (!socket || selectedCard === null) return;
     socket.emit('game:select_card', selectedCard);
+    setMyPlayedCard(selectedCard);
     setSelectedCard(null);
   }, [socket, selectedCard]);
+
+  const cancelCard = useCallback(() => {
+    if (!socket) return;
+    socket.emit('game:unselect_card');
+    setMyPlayedCard(null);
+  }, [socket]);
 
   const chooseRow = (rowIndex: number) => {
     if (!socket) return;
@@ -318,10 +335,16 @@ export default function Game() {
                     <span key={p.id} className="waiting-name">{p.nickname}</span>
                   ))}
                 </div>
+                <button onClick={cancelCard} className="btn-secondary btn-small" style={{ marginTop: 8 }}>선택 취소</button>
               </div>
-              <div className="hand-cards hand-disabled">
+              <div className="hand-cards hand-waiting">
                 {gameState.hand.map((card) => (
-                  <div key={card.number} className={`card bull-${getBullClass(card.bullHeads)}`}>
+                  <div
+                    key={card.number}
+                    className={`card bull-${getBullClass(card.bullHeads)} ${myPlayedCard === card.number ? 'card-played' : 'card-dimmed'}`}
+                    onClick={myPlayedCard === card.number ? cancelCard : undefined}
+                    style={myPlayedCard === card.number ? { cursor: 'pointer' } : undefined}
+                  >
                     <span className="card-number">{card.number}</span>
                     <span className="card-bulls">{'🐂'.repeat(card.bullHeads)}</span>
                   </div>

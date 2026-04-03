@@ -804,8 +804,30 @@ button {
 }
 
 .hand-disabled {
-  opacity: 0.5;
   pointer-events: none;
+}
+
+.hand-disabled .card {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+
+.hand-waiting .card-dimmed {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+  pointer-events: none;
+}
+
+.hand-waiting .card-played {
+  opacity: 1;
+  filter: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(174, 86, 48, 0.3);
+}
+
+.hand-waiting .card-played:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 12px rgba(174, 86, 48, 0.5);
 }
 
 .hand-cards {

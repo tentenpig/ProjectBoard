@@ -101,6 +101,14 @@ export function selectCard(state: GameState, playerId: number, cardNumber: numbe
   return true;
 }
 
+export function unselectCard(state: GameState, playerId: number): boolean {
+  if (state.phase !== 'selecting') return false;
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player || !player.selectedCard) return false;
+  player.selectedCard = null;
+  return true;
+}
+
 export function allPlayersSelected(state: GameState): boolean {
   return state.players.every((p) => p.selectedCard !== null);
 }
