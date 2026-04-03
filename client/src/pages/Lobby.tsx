@@ -72,7 +72,7 @@ export default function Lobby() {
   return (
     <div className="lobby-container">
       <header className="lobby-header">
-        <h1>🎲 ProjectBoard</h1>
+        <h1>네온 보드게임</h1>
         <div className="user-info">
           <span>{user?.nickname}</span>
           <button onClick={logout} className="btn-secondary">로그아웃</button>

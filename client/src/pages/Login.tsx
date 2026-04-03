@@ -39,7 +39,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>🎲 ProjectBoard</h1>
+        <h1>네온 보드게임</h1>
         <h2>로그인</h2>
         <form onSubmit={handleSubmit}>
           <input
