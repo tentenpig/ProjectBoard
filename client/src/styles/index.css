@@ -209,6 +209,18 @@ button {
   border-bottom: 1px solid var(--border-light);
 }
 
+.lobby-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.online-count {
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 500;
+}
+
 .lobby-header h1 {
   font-size: 22px;
   font-weight: 700;

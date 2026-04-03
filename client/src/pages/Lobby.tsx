@@ -17,6 +17,7 @@ interface RoomInfo {
 
 export default function Lobby() {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(4);
@@ -26,6 +27,10 @@ export default function Lobby() {
 
   const handleRoomList = useCallback((list: RoomInfo[]) => {
     setRooms(list);
+  }, []);
+
+  const handleOnlineCount = useCallback((count: number) => {
+    setOnlineCount(count);
   }, []);
 
   const handleRoomCreated = useCallback((roomId: string) => {
@@ -42,13 +47,15 @@ export default function Lobby() {
     socket.on('room:list', handleRoomList);
     socket.on('room:created', handleRoomCreated);
     socket.on('room:joined', handleRoomJoined);
+    socket.on('online:count', handleOnlineCount);
 
     return () => {
       socket.off('room:list', handleRoomList);
       socket.off('room:created', handleRoomCreated);
       socket.off('room:joined', handleRoomJoined);
+      socket.off('online:count', handleOnlineCount);
     };
-  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined]);
+  }, [socket, handleRoomList, handleRoomCreated, handleRoomJoined, handleOnlineCount]);
 
   const createRoom = () => {
     if (!socket || !roomName.trim()) return;
@@ -75,7 +82,10 @@ export default function Lobby() {
       <div className="page-main">
         <div className="lobby-container">
           <header className="lobby-header">
-            <h1>네온 보드게임</h1>
+            <div className="lobby-title">
+              <h1>네온 보드게임</h1>
+              <span className="online-count">{onlineCount}명 접속 중</span>
+            </div>
             <div className="user-info">
               <span>{user?.nickname}</span>
               <button onClick={logout} className="btn-secondary">로그아웃</button>

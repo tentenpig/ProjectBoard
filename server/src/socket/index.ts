@@ -37,6 +37,7 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 const userSockets = new Map<number, Socket>();
+export const onlineNicknames = new Set<string>();
 const chatHistory = new Map<string, { nickname: string; text: string; timestamp: number }[]>();
 
 const CHAT_HISTORY_LIMIT = 20;
@@ -60,6 +61,7 @@ function broadcastRoomList(io: Server) {
     status: r.status,
   }));
   io.to('lobby').emit('room:list', roomList);
+  io.to('lobby').emit('online:count', userSockets.size);
 }
 
 function broadcastRoomState(io: Server, room: Room) {
@@ -184,6 +186,7 @@ export function setupSocket(io: Server) {
   io.on('connection', (socket) => {
     const user: UserInfo = (socket as any).user;
     userSockets.set(user.id, socket);
+    onlineNicknames.add(user.nickname);
     console.log(`Connected: ${user.nickname} (${user.id})`);
 
     // Check if user is already in a room (reconnect scenario)
@@ -411,6 +414,7 @@ export function setupSocket(io: Server) {
     // Disconnect
     socket.on('disconnect', () => {
       userSockets.delete(user.id);
+      onlineNicknames.delete(user.nickname);
       console.log(`Disconnected: ${user.nickname} (${user.id})`);
       removeUserFromRoom(io, socket, user);
     });
