@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useTheme } from '../contexts/ThemeContext';
-import Chat from '../components/Chat';
+import ChatPanel from '../components/ChatPanel';
 
 interface RoomInfo {
   id: string;
@@ -185,9 +185,7 @@ export default function Lobby() {
           </div>
         </div>
       </div>
-      <div className="page-chat">
-        <Chat channel="lobby" />
-      </div>
+      <ChatPanel channel="lobby" />
     </div>
   );
 }

@@ -1202,3 +1202,322 @@ button {
   padding: 8px 14px;
   font-size: 13px;
 }
+
+/* Mobile-only elements hidden on desktop */
+.mobile-only {
+  display: none;
+}
+
+/* Chat FAB (floating action button) */
+.chat-fab {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 20px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Chat panel header for mobile */
+.chat-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Chat backdrop */
+.chat-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 398;
+}
+
+/* ========== Mobile Layout (max-width: 768px) ========== */
+@media (max-width: 768px) {
+  .mobile-only {
+    display: flex;
+  }
+
+  .chat-fab {
+    display: flex;
+  }
+
+  /* Single column layout */
+  .page-layout {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .page-main {
+    padding: 12px;
+  }
+
+  /* Chat as slide-in overlay */
+  .page-chat {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 85%;
+    max-width: 320px;
+    height: 100vh;
+    padding: 0;
+    z-index: 399;
+    transition: right 0.25s ease-in-out;
+    background: var(--bg-card);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .page-chat.chat-open {
+    right: 0;
+  }
+
+  .page-chat .chat-container {
+    height: 100vh;
+    position: static;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* Hide desktop chat header, use mobile one */
+  .page-chat .chat-header {
+    display: none;
+  }
+
+  /* Auth page */
+  .auth-card {
+    margin: 12px;
+    padding: 28px 20px;
+  }
+
+  /* Lobby */
+  .lobby-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .lobby-header h1 {
+    font-size: 18px;
+  }
+
+  .lobby-title {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .user-info {
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .lobby-actions {
+    margin-bottom: 12px;
+  }
+
+  .lobby-actions h2 {
+    font-size: 16px;
+  }
+
+  .room-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .room-actions {
+    width: 100%;
+  }
+
+  .room-actions button {
+    width: 100%;
+  }
+
+  /* Room */
+  .room-header {
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Game */
+  .game-container {
+    min-height: auto;
+  }
+
+  .game-header {
+    padding: 8px 10px;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .round-info { font-size: 13px; }
+  .phase-info { font-size: 12px; }
+  .my-penalty { font-size: 12px; }
+  .scoreboard-hint { display: none; }
+
+  /* Players bar compact */
+  .players-bar {
+    gap: 4px;
+  }
+
+  .player-badge {
+    padding: 4px 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  /* Cards smaller on mobile */
+  .card {
+    width: 48px;
+    height: 66px;
+  }
+
+  .card-number {
+    font-size: 15px;
+  }
+
+  .card-bulls {
+    font-size: 8px;
+  }
+
+  .card-small {
+    width: 40px;
+    height: 56px;
+  }
+
+  .card-small .card-number {
+    font-size: 12px;
+  }
+
+  .card-empty {
+    width: 48px;
+    height: 66px;
+  }
+
+  /* Rows */
+  .game-row {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .row-label {
+    min-width: 36px;
+    font-size: 11px;
+  }
+
+  .row-penalty {
+    font-size: 9px;
+  }
+
+  .row-cards {
+    gap: 2px;
+  }
+
+  /* Hand */
+  .hand-area {
+    padding: 10px;
+    margin-top: 8px;
+  }
+
+  .hand-cards {
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .card-hand:hover {
+    transform: none;
+  }
+
+  .card-selected {
+    transform: translateY(-8px);
+  }
+
+  /* Selected cards reveal */
+  .selected-cards-reveal {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .play-nickname {
+    font-size: 10px;
+  }
+
+  /* Scoreboard */
+  .scoreboard-panel {
+    padding: 10px;
+  }
+
+  .score-table th,
+  .score-table td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* Modal */
+  .modal {
+    min-width: auto;
+    width: calc(100vw - 32px);
+    max-width: 400px;
+    padding: 20px;
+  }
+
+  .score-modal {
+    min-width: auto;
+    width: calc(100vw - 32px);
+  }
+
+  /* Placement animation target adjust */
+  .flying-card {
+    width: 48px !important;
+    height: 66px !important;
+  }
+
+  /* Penalty toast */
+  .penalty-toast {
+    font-size: 14px;
+    padding: 8px 16px;
+    top: 12px;
+  }
+
+  /* Online list */
+  .online-list {
+    position: fixed;
+    top: 60px;
+    left: 12px;
+    right: 12px;
+    z-index: 50;
+  }
+
+  /* Ready status */
+  .ready-players {
+    gap: 4px;
+  }
+
+  .ready-player {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+
+  /* Waiting select */
+  .waiting-select {
+    padding: 12px;
+    font-size: 13px;
+  }
+}

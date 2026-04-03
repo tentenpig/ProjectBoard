@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import Chat from '../components/Chat';
+import ChatPanel from '../components/ChatPanel';
 
 interface Card {
   number: number;
@@ -473,9 +473,7 @@ export default function Game() {
       )}
     </div>
     </div>
-    <div className="page-chat">
-      <Chat channel={roomId!} />
-    </div>
+    <ChatPanel channel={roomId!} />
     </div>
   );
 }

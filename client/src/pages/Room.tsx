@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import Chat from '../components/Chat';
+import ChatPanel from '../components/ChatPanel';
 
 interface RoomState {
   id: string;
@@ -108,9 +108,7 @@ export default function Room() {
           </div>
         </div>
       </div>
-      <div className="page-chat">
-        <Chat channel={roomId!} />
-      </div>
+      <ChatPanel channel={roomId!} />
     </div>
   );
 }
