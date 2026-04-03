@@ -16,6 +16,16 @@ import {
   getPlayerView,
   PlaceResult,
 } from '../games/sixNimmt/logic';
+import {
+  DaVinciState,
+  initGame as initDaVinci,
+  drawTile,
+  guess as daVinciGuess,
+  continueGuessing,
+  stopGuessing,
+  getPlayerView as getDaVinciPlayerView,
+  getSpectatorView as getDaVinciSpectatorView,
+} from '../games/davinciCode/logic';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -33,6 +43,7 @@ interface Room {
   players: UserInfo[];
   spectators: UserInfo[];
   gameState: GameState | null;
+  davinciState: DaVinciState | null;
   status: 'waiting' | 'playing';
   readyForNext: Set<number>;
 }
@@ -80,15 +91,30 @@ function broadcastRoomState(io: Server, room: Room) {
 }
 
 function broadcastGameState(io: Server, room: Room) {
+  if (room.davinciState) {
+    for (const player of room.players) {
+      const socket = userSockets.get(player.id);
+      if (socket) {
+        socket.emit('game:state', { gameType: 'davinci-code', ...getDaVinciPlayerView(room.davinciState, player.id) });
+      }
+    }
+    for (const spec of room.spectators) {
+      const socket = userSockets.get(spec.id);
+      if (socket) {
+        socket.emit('game:state', { gameType: 'davinci-code', ...getDaVinciSpectatorView(room.davinciState) });
+      }
+    }
+    return;
+  }
+
   if (!room.gameState) return;
   for (const player of room.players) {
     const socket = userSockets.get(player.id);
     if (socket) {
-      socket.emit('game:state', getPlayerView(room.gameState, player.id));
+      socket.emit('game:state', { gameType: 'six-nimmt', ...getPlayerView(room.gameState, player.id) });
     }
   }
-  // Send spectator view (no hand)
-  const spectatorView = { ...getPlayerView(room.gameState, -1), spectating: true };
+  const spectatorView = { ...getPlayerView(room.gameState, -1), spectating: true, gameType: 'six-nimmt' };
   for (const spec of room.spectators) {
     const socket = userSockets.get(spec.id);
     if (socket) {
@@ -205,8 +231,9 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
     }
 
     // If game is in progress, abort it
-    if (room.gameState) {
+    if (room.gameState || room.davinciState) {
       room.gameState = null;
+      room.davinciState = null;
       room.status = 'waiting';
       io.to(roomId).emit('game:aborted', `${user.nickname} has left the game.`);
     }
@@ -275,10 +302,11 @@ export function setupSocket(io: Server) {
         name,
         hostId: user.id,
         gameType,
-        maxPlayers: Math.min(Math.max(maxPlayers, 2), 10),
+        maxPlayers: Math.min(Math.max(maxPlayers, 2), gameType === 'davinci-code' ? 4 : 10),
         players: [user],
         spectators: [],
         gameState: null,
+        davinciState: null,
         status: 'waiting',
         readyForNext: new Set(),
       };
@@ -348,9 +376,18 @@ export function setupSocket(io: Server) {
       if (room.gameState) {
         const isSpectator = room.spectators.find((s) => s.id === user.id);
         if (isSpectator) {
-          socket.emit('game:state', { ...getPlayerView(room.gameState, -1), spectating: true });
+          socket.emit('game:state', { ...getPlayerView(room.gameState, -1), spectating: true, gameType: 'six-nimmt' });
         } else {
-          socket.emit('game:state', getPlayerView(room.gameState, user.id));
+          socket.emit('game:state', { gameType: 'six-nimmt', ...getPlayerView(room.gameState, user.id) });
+        }
+      }
+
+      if (room.davinciState) {
+        const isSpectator = room.spectators.find((s) => s.id === user.id);
+        if (isSpectator) {
+          socket.emit('game:state', { gameType: 'davinci-code', ...getDaVinciSpectatorView(room.davinciState) });
+        } else {
+          socket.emit('game:state', { gameType: 'davinci-code', ...getDaVinciPlayerView(room.davinciState, user.id) });
         }
       }
     });
@@ -391,7 +428,12 @@ export function setupSocket(io: Server) {
 
           room.status = 'playing';
           const playerInfos = room.players.map((p) => ({ id: p.id, nickname: p.nickname }));
-          room.gameState = initRound(playerInfos);
+
+          if (room.gameType === 'davinci-code') {
+            room.davinciState = initDaVinci(playerInfos);
+          } else {
+            room.gameState = initRound(playerInfos);
+          }
 
           broadcastRoomList(io);
           broadcastGameState(io, room);
@@ -484,12 +526,69 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // ===== Da Vinci Code events =====
+    socket.on('davinci:draw', () => {
+      for (const [, room] of rooms) {
+        if (room.davinciState && room.players.find((p) => p.id === user.id)) {
+          if (drawTile(room.davinciState, user.id)) {
+            broadcastGameState(io, room);
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('davinci:guess', ({ targetPlayerId, tileIndex, guessedNumber }: { targetPlayerId: number; tileIndex: number; guessedNumber: number }) => {
+      for (const [, room] of rooms) {
+        if (room.davinciState && room.players.find((p) => p.id === user.id)) {
+          const result = daVinciGuess(room.davinciState, user.id, targetPlayerId, tileIndex, guessedNumber);
+          if (result) {
+            io.to(room.id).emit('davinci:guess_result', {
+              playerId: user.id,
+              targetPlayerId,
+              tileIndex,
+              guessedNumber,
+              correct: result.correct,
+              revealedTile: result.correct ? result.targetTile : null,
+            });
+            broadcastGameState(io, room);
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('davinci:continue', () => {
+      for (const [, room] of rooms) {
+        if (room.davinciState && room.players.find((p) => p.id === user.id)) {
+          if (continueGuessing(room.davinciState, user.id)) {
+            broadcastGameState(io, room);
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('davinci:stop', ({ jokerPosition }: { jokerPosition?: number } = {}) => {
+      for (const [, room] of rooms) {
+        if (room.davinciState && room.players.find((p) => p.id === user.id)) {
+          if (stopGuessing(room.davinciState, user.id, jokerPosition)) {
+            broadcastGameState(io, room);
+          }
+          break;
+        }
+      }
+    });
+
     // Return to lobby
     socket.on('game:return_lobby', () => {
       for (const [roomId, room] of rooms) {
-        if (room.hostId === user.id && room.gameState &&
-            (room.gameState.phase === 'game_over' || room.gameState.phase === 'round_end')) {
+        if (room.hostId !== user.id) continue;
+        const sixNimmtDone = room.gameState && (room.gameState.phase === 'game_over' || room.gameState.phase === 'round_end');
+        const davinciDone = room.davinciState && room.davinciState.phase === 'game_over';
+        if (sixNimmtDone || davinciDone) {
           room.gameState = null;
+          room.davinciState = null;
           room.status = 'waiting';
 
           for (const player of room.players) {

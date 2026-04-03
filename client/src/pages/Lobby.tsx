@@ -22,6 +22,7 @@ export default function Lobby() {
   const [showOnlineList, setShowOnlineList] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [roomName, setRoomName] = useState('');
+  const [gameType, setGameType] = useState('six-nimmt');
   const [maxPlayers, setMaxPlayers] = useState(4);
   const { user, logout } = useAuth();
   const socket = useSocket();
@@ -70,7 +71,7 @@ export default function Lobby() {
     if (!socket || !roomName.trim()) return;
     socket.emit('room:create', {
       name: roomName.trim(),
-      gameType: 'six-nimmt',
+      gameType,
       maxPlayers,
     });
     setShowCreate(false);
@@ -89,6 +90,7 @@ export default function Lobby() {
 
   const gameTypeLabel: Record<string, string> = {
     'six-nimmt': '젝스님트',
+    'davinci-code': '다빈치 코드',
   };
 
   return (
@@ -138,14 +140,20 @@ export default function Lobby() {
                 />
                 <div className="form-group">
                   <label>게임</label>
-                  <select disabled>
-                    <option>젝스님트 (6 Nimmt!)</option>
+                  <select value={gameType} onChange={(e) => {
+                    const gt = e.target.value;
+                    setGameType(gt);
+                    const max = gt === 'davinci-code' ? 4 : 10;
+                    if (maxPlayers > max) setMaxPlayers(max);
+                  }}>
+                    <option value="six-nimmt">젝스님트 (6 Nimmt!)</option>
+                    <option value="davinci-code">다빈치 코드 (Da Vinci Code)</option>
                   </select>
                 </div>
                 <div className="form-group">
                   <label>최대 인원</label>
                   <select value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
-                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    {Array.from({ length: (gameType === 'davinci-code' ? 4 : 10) - 1 }, (_, i) => i + 2).map((n) => (
                       <option key={n} value={n}>{n}명</option>
                     ))}
                   </select>

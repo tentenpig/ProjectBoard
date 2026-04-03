@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import ChatPanel from '../components/ChatPanel';
+import DaVinciGame from '../components/DaVinciGame';
 
 interface Card {
   number: number;
@@ -18,6 +19,7 @@ interface PlayerInfo {
 }
 
 interface GameStateView {
+  gameType?: string;
   rows: Card[][];
   hand: Card[];
   myPenalty: number;
@@ -220,6 +222,10 @@ export default function Game() {
 
   if (!gameState) {
     return <div className="loading">게임을 불러오는 중...</div>;
+  }
+
+  if (gameState.gameType === 'davinci-code') {
+    return <DaVinciGame socket={socket!} gameState={gameState as any} />;
   }
 
   const isSpectating = gameState.spectating === true;

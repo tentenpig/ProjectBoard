@@ -78,7 +78,7 @@ export default function Room() {
           <header className="room-header">
             <button onClick={leaveRoom} className="btn-secondary">← 나가기</button>
             <h2>{roomState.name}</h2>
-            <span className="game-badge">젝스님트</span>
+            <span className="game-badge">{{ 'six-nimmt': '젝스님트', 'davinci-code': '다빈치 코드' }[roomState.gameType] || roomState.gameType}</span>
           </header>
 
           <div className="room-content">
@@ -87,6 +87,7 @@ export default function Room() {
                 name={roomState.name}
                 maxPlayers={roomState.maxPlayers}
                 minPlayers={Math.max(roomState.players.length, 2)}
+                maxLimit={roomState.gameType === 'davinci-code' ? 4 : 10}
                 currentPlayers={roomState.players.length}
                 socket={socket!}
               />
@@ -123,10 +124,11 @@ export default function Room() {
   );
 }
 
-function RoomSettings({ name, maxPlayers, minPlayers, currentPlayers, socket }: {
+function RoomSettings({ name, maxPlayers, minPlayers, maxLimit, currentPlayers, socket }: {
   name: string;
   maxPlayers: number;
   minPlayers: number;
+  maxLimit: number;
   currentPlayers: number;
   socket: import('socket.io-client').Socket;
 }) {
@@ -168,7 +170,7 @@ function RoomSettings({ name, maxPlayers, minPlayers, currentPlayers, socket }: 
       <div className="form-group">
         <label>최대 인원 (현재 {currentPlayers}명 참가 중)</label>
         <select value={editMax} onChange={(e) => setEditMax(Number(e.target.value))}>
-          {Array.from({ length: 10 - minPlayers + 1 }, (_, i) => minPlayers + i).map((n) => (
+          {Array.from({ length: maxLimit - minPlayers + 1 }, (_, i) => minPlayers + i).map((n) => (
             <option key={n} value={n}>{n}명</option>
           ))}
         </select>

@@ -1563,3 +1563,270 @@ button {
     font-size: 13px;
   }
 }
+
+/* ========== Da Vinci Code ========== */
+.dv-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.dv-player-row {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px;
+  transition: border-color 0.2s;
+}
+
+.dv-player-row.active-turn {
+  border-color: var(--accent);
+}
+
+.dv-player-row.eliminated {
+  opacity: 0.5;
+}
+
+.dv-player-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dv-player-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.dv-player-name.is-me {
+  color: var(--accent);
+}
+
+.dv-player-hidden {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dv-tiles {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dv-tile {
+  width: 44px;
+  height: 60px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+
+.dv-tile.black.revealed {
+  background: #2a2a2a;
+  color: #fff;
+  border-color: #444;
+}
+
+.dv-tile.white.revealed {
+  background: #f5f5f0;
+  color: #1a1a1a;
+  border-color: #ccc;
+}
+
+.dv-tile.black.hidden {
+  background: linear-gradient(135deg, #333, #1a1a1a);
+  color: #666;
+  border-color: #444;
+}
+
+.dv-tile.white.hidden {
+  background: linear-gradient(135deg, #e8e8e0, #d0d0c8);
+  color: #aaa;
+  border-color: #bbb;
+}
+
+.dv-tile.selectable {
+  cursor: pointer;
+}
+
+.dv-tile.selectable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dv-tile.selected {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(174, 86, 48, 0.4);
+  transform: translateY(-4px);
+}
+
+.dv-tile-number {
+  font-size: 18px;
+}
+
+.dv-tile-back {
+  font-size: 16px;
+  opacity: 0.5;
+}
+
+.dv-drawn-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+.dv-actions {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.dv-guess-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.dv-guess-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dv-number-grid {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dv-num-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.dv-num-btn:hover {
+  background: var(--bg-hover);
+}
+
+.dv-num-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.dv-joker-btn {
+  width: 48px;
+  font-size: 18px;
+}
+
+.dv-hint {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.dv-continue-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dv-continue-actions p {
+  font-weight: 600;
+  color: var(--success);
+  margin-bottom: 4px;
+}
+
+.dv-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  z-index: 201;
+  animation: toast-in 0.3s ease-out;
+}
+
+.dv-toast-correct {
+  background: var(--success);
+  color: #fff;
+}
+
+.dv-toast-wrong {
+  background: var(--danger);
+  color: #fff;
+}
+
+.dv-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dv-result-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.dv-result-item.winner {
+  background: var(--success);
+  color: #fff;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .dv-tile {
+    width: 36px;
+    height: 50px;
+  }
+
+  .dv-tile-number {
+    font-size: 14px;
+  }
+
+  .dv-num-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  .dv-joker-btn {
+    width: 40px;
+  }
+}
