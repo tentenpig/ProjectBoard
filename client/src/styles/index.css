@@ -544,6 +544,45 @@ button {
 .my-penalty {
   font-size: 14px;
   color: var(--text-muted);
+  position: relative;
+}
+
+.my-penalty:hover {
+  color: var(--text);
+}
+
+.scoreboard-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.scoreboard-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.scoreboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scoreboard-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.scoreboard-panel .score-table {
+  margin-bottom: 0;
+}
+
+.score-me td {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Players bar */

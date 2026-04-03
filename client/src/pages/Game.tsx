@@ -56,6 +56,7 @@ export default function Game() {
   const [lastPlacement, setLastPlacement] = useState<{ playerId: number; nickname: string; card: Card; rowIndex: number; type: string } | null>(null);
   const [flyingCard, setFlyingCard] = useState<{ card: Card; from: DOMRect; to: DOMRect } | null>(null);
   const [myPlayedCard, setMyPlayedCard] = useState<number | null>(null);
+  const [showScoreboard, setShowScoreboard] = useState(false);
   const revealCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const gameStateRef = useRef(gameState);
@@ -260,8 +261,45 @@ export default function Game() {
           {gameState.phase === 'round_end' && '라운드 종료!'}
           {gameState.phase === 'game_over' && '게임 종료!'}
         </div>
-        <div className="my-penalty">{isSpectating ? '관전 중' : `내 벌점: ${myPlayer?.penalty || 0}`}</div>
+        <div className="my-penalty" onClick={() => setShowScoreboard(!showScoreboard)} style={{ cursor: 'pointer' }}>
+          {isSpectating ? '관전 중' : `🐂 ${(gameState.totalScores[user?.id ?? -1] || 0) + (myPlayer?.penalty || 0)} / 66`}
+          <span className="scoreboard-hint"> [점수표]</span>
+        </div>
       </header>
+
+      {/* Scoreboard */}
+      {showScoreboard && (
+        <div className="scoreboard-panel">
+          <div className="scoreboard-header">
+            <h3>종합 점수표</h3>
+            <button onClick={() => setShowScoreboard(false)} className="btn-secondary btn-small">닫기</button>
+          </div>
+          <table className="score-table">
+            <thead>
+              <tr>
+                <th>플레이어</th>
+                <th>이번 라운드</th>
+                <th>총 벌점</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gameState.players
+                .map((p) => ({
+                  ...p,
+                  totalScore: (gameState.totalScores[p.id] || 0) + p.penalty,
+                }))
+                .sort((a, b) => a.totalScore - b.totalScore)
+                .map((p) => (
+                  <tr key={p.id} className={p.id === user?.id ? 'score-me' : ''}>
+                    <td>{p.nickname} {p.id === user?.id ? '(나)' : ''}</td>
+                    <td>{p.penalty}</td>
+                    <td>{p.totalScore} / 66</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Players bar */}
       <div className="players-bar">
