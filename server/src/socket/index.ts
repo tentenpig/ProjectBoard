@@ -39,7 +39,7 @@ const rooms = new Map<string, Room>();
 const userSockets = new Map<number, Socket>();
 
 function broadcastRoomList(io: Server) {
-  const roomList = Array.from(rooms.values()).map((r) => ({
+  const roomList = Array.from(rooms.values()).filter((r) => r.status === 'waiting').map((r) => ({
     id: r.id,
     name: r.name,
     hostId: r.hostId,
