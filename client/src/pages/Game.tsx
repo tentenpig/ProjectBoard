@@ -52,6 +52,7 @@ export default function Game() {
   const [readyStatus, setReadyStatus] = useState<{ ready: number[]; total: number } | null>(null);
   const [penaltyToast, setPenaltyToast] = useState<{ nickname: string; points: number } | null>(null);
   const [screenFlash, setScreenFlash] = useState(false);
+  const [lastPlacement, setLastPlacement] = useState<{ playerId: number; nickname: string; card: Card; rowIndex: number; type: string } | null>(null);
   const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
@@ -70,6 +71,13 @@ export default function Game() {
 
     const handleGameEvent = (event: GameEvent) => {
       setEvents((prev) => [...prev, event]);
+
+      if ((event.type === 'placed' || event.type === 'took_row') && event.rowIndex !== undefined) {
+        const nickname = gameState?.players.find((p) => p.id === event.playerId)?.nickname || '???';
+        setLastPlacement({ playerId: event.playerId, nickname, card: event.card, rowIndex: event.rowIndex, type: event.type });
+        setTimeout(() => setLastPlacement(null), 750);
+      }
+
       if (event.type === 'took_row' && event.takenCards) {
         const points = event.takenCards.reduce((s, c) => s + c.bullHeads, 0);
         const nickname = gameState?.players.find((p) => p.id === event.playerId)?.nickname || '???';
@@ -223,12 +231,22 @@ export default function Game() {
         </div>
       )}
 
+      {/* Placement banner */}
+      {lastPlacement && (
+        <div className={`placement-banner ${lastPlacement.type === 'took_row' ? 'placement-took' : ''}`}>
+          <span className="placement-name">{lastPlacement.nickname}</span>
+          <span>→ 열 {lastPlacement.rowIndex + 1}에</span>
+          <span className={`placement-card bull-${getBullClass(lastPlacement.card.bullHeads)}`}>{lastPlacement.card.number}</span>
+          <span>{lastPlacement.type === 'took_row' ? '배치 (열 회수!)' : '배치'}</span>
+        </div>
+      )}
+
       {/* Rows */}
       <div className="game-rows">
         {gameState.rows.map((row, rowIdx) => (
           <div
             key={rowIdx}
-            className={`game-row ${isMyTurnToChoose ? 'chooseable' : ''}`}
+            className={`game-row ${isMyTurnToChoose ? 'chooseable' : ''} ${lastPlacement?.rowIndex === rowIdx ? 'row-highlight' : ''}`}
             onClick={() => isMyTurnToChoose && chooseRow(rowIdx)}
           >
             <div className="row-label">
