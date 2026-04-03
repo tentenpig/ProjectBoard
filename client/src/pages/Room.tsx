@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import Chat from '../components/Chat';
 
 interface RoomState {
   id: string;
@@ -88,6 +89,8 @@ export default function Room() {
             </div>
           ))}
         </div>
+
+        <Chat channel={roomId!} />
 
         <div className="room-footer">
           {isHost ? (

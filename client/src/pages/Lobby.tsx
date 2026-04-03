@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import Chat from '../components/Chat';
 
 interface RoomInfo {
   id: string;
@@ -143,6 +144,8 @@ export default function Lobby() {
             ))
           )}
         </div>
+
+        <Chat channel="lobby" />
       </div>
     </div>
   );

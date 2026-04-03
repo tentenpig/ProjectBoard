@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import Chat from '../components/Chat';
 
 interface Card {
   number: number;
@@ -253,6 +254,8 @@ export default function Game() {
           )}
         </div>
       )}
+
+      <Chat channel={roomId!} />
 
       {/* Round end / Game over overlay */}
       {roundResult && (

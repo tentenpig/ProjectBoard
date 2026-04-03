@@ -363,6 +363,20 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // Chat
+    socket.on('chat:send', ({ channel, text }: { channel: string; text: string }) => {
+      if (!text || text.length > 200) return;
+      const msg = { nickname: user.nickname, text, timestamp: Date.now() };
+      if (channel === 'lobby') {
+        io.to('lobby').emit('chat:message', msg);
+      } else {
+        const room = rooms.get(channel);
+        if (room && room.players.find((p) => p.id === user.id)) {
+          io.to(channel).emit('chat:message', msg);
+        }
+      }
+    });
+
     // Disconnect
     socket.on('disconnect', () => {
       userSockets.delete(user.id);
