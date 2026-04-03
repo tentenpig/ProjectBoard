@@ -44,7 +44,15 @@ export default function DaVinciGame({ socket, gameState }: Props) {
   const navigate = useNavigate();
   const [selectedTarget, setSelectedTarget] = useState<{ playerId: number; tileIndex: number } | null>(null);
   const [guessNumber, setGuessNumber] = useState<number | null>(null);
-  const [guessResult, setGuessResult] = useState<{ correct: boolean; guessedNumber: number } | null>(null);
+  const [guessAnim, setGuessAnim] = useState<{
+    playerName: string;
+    targetName: string;
+    tileIndex: number;
+    targetPlayerId: number;
+    guessedNumber: number;
+    phase: 'pending' | 'result';
+    correct: boolean;
+  } | null>(null);
 
   const isMyTurn = gameState.currentPlayerId === user?.id;
   const isSpectating = gameState.spectating === true;
@@ -52,15 +60,37 @@ export default function DaVinciGame({ socket, gameState }: Props) {
 
   useEffect(() => {
     const handleResult = (data: any) => {
-      setGuessResult({ correct: data.correct, guessedNumber: data.guessedNumber });
-      setTimeout(() => setGuessResult(null), 1500);
+      const playerName = gameState.players.find((p) => p.id === data.playerId)?.nickname || '???';
+      const targetName = gameState.players.find((p) => p.id === data.targetPlayerId)?.nickname || '???';
+
+      // Phase 1: Show pending animation (highlight tile)
+      setGuessAnim({
+        playerName,
+        targetName,
+        tileIndex: data.tileIndex,
+        targetPlayerId: data.targetPlayerId,
+        guessedNumber: data.guessedNumber,
+        phase: 'pending',
+        correct: data.correct,
+      });
+
+      // Phase 2: Show result after 1 second
+      setTimeout(() => {
+        setGuessAnim((prev) => prev ? { ...prev, phase: 'result' } : null);
+      }, 1000);
+
+      // Phase 3: Clear after another 1.5 seconds
+      setTimeout(() => {
+        setGuessAnim(null);
+      }, 2500);
+
       setSelectedTarget(null);
       setGuessNumber(null);
     };
 
     socket.on('davinci:guess_result', handleResult);
     return () => { socket.off('davinci:guess_result', handleResult); };
-  }, [socket]);
+  }, [socket, gameState.players]);
 
   const handleDraw = () => {
     socket.emit('davinci:draw');
@@ -98,17 +128,23 @@ export default function DaVinciGame({ socket, gameState }: Props) {
 
   const renderTile = (tile: TileView, belongsToMe: boolean, playerId: number, tileIndex: number) => {
     const isSelectable = isMyTurn && !isSpectating && gameState.phase === 'guessing'
-      && playerId !== user?.id && !tile.revealed;
+      && playerId !== user?.id && !tile.revealed && !guessAnim;
     const isSelected = selectedTarget?.playerId === playerId && selectedTarget?.tileIndex === tileIndex;
+    const isGuessTarget = guessAnim?.targetPlayerId === playerId && guessAnim?.tileIndex === tileIndex;
+    const guessClass = isGuessTarget
+      ? (guessAnim?.phase === 'pending' ? 'guess-pending' : guessAnim?.correct ? 'guess-correct' : 'guess-wrong')
+      : '';
 
     return (
       <div
         key={tile.id}
-        className={`dv-tile ${tile.color} ${tile.revealed ? 'revealed' : 'hidden'} ${isSelectable ? 'selectable' : ''} ${isSelected ? 'selected' : ''}`}
+        className={`dv-tile ${tile.color} ${tile.revealed ? 'revealed' : 'hidden'} ${isSelectable ? 'selectable' : ''} ${isSelected ? 'selected' : ''} ${guessClass}`}
         onClick={() => isSelectable && setSelectedTarget({ playerId, tileIndex })}
       >
         {(tile.revealed || (belongsToMe && tile.number !== null)) ? (
           <span className="dv-tile-number">{tile.joker ? '★' : tile.number}</span>
+        ) : isGuessTarget && guessAnim?.phase === 'pending' ? (
+          <span className="dv-tile-number dv-guess-num">{guessAnim.guessedNumber === -1 ? '★' : guessAnim.guessedNumber}?</span>
         ) : (
           <span className="dv-tile-back">?</span>
         )}
@@ -138,10 +174,20 @@ export default function DaVinciGame({ socket, gameState }: Props) {
             <div className="my-penalty">{isSpectating ? '관전 중' : `남은 타일: ${gameState.poolCount}개`}</div>
           </header>
 
-          {/* Guess result toast */}
-          {guessResult && (
-            <div className={`dv-toast ${guessResult.correct ? 'dv-toast-correct' : 'dv-toast-wrong'}`}>
-              {guessResult.correct ? '정답!' : '오답!'}
+          {/* Guess animation banner */}
+          {guessAnim && (
+            <div className={`dv-guess-banner ${guessAnim.phase === 'result' ? (guessAnim.correct ? 'dv-banner-correct' : 'dv-banner-wrong') : 'dv-banner-pending'}`}>
+              <span className="dv-banner-text">
+                <strong>{guessAnim.playerName}</strong>이(가) <strong>{guessAnim.targetName}</strong>의 {guessAnim.tileIndex + 1}번째 타일을
+                <span className="dv-banner-number">{guessAnim.guessedNumber === -1 ? ' ★' : ` ${guessAnim.guessedNumber}`}</span>
+                (으)로 추측!
+              </span>
+              {guessAnim.phase === 'result' && (
+                <span className="dv-banner-result">{guessAnim.correct ? '정답!' : '오답...'}</span>
+              )}
+              {guessAnim.phase === 'pending' && (
+                <span className="dv-banner-dots">...</span>
+              )}
             </div>
           )}
 

@@ -1764,6 +1764,110 @@ button {
   margin-bottom: 4px;
 }
 
+/* Guess target tile animations */
+.dv-tile.guess-pending {
+  border-color: var(--warning) !important;
+  box-shadow: 0 0 16px rgba(184, 134, 11, 0.5);
+  animation: guess-pulse 0.6s ease-in-out infinite;
+}
+
+.dv-tile.guess-correct {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 16px rgba(90, 138, 94, 0.6);
+  animation: guess-reveal 0.4s ease-out;
+}
+
+.dv-tile.guess-wrong {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 16px rgba(166, 61, 47, 0.5);
+  animation: guess-shake 0.4s ease-out;
+}
+
+.dv-guess-num {
+  color: var(--warning) !important;
+  font-size: 16px !important;
+}
+
+@keyframes guess-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(184, 134, 11, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(184, 134, 11, 0.6); }
+}
+
+@keyframes guess-reveal {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes guess-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Guess banner */
+.dv-guess-banner {
+  padding: 10px 20px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: banner-in 0.3s ease-out;
+  border: 1.5px solid transparent;
+}
+
+@keyframes banner-in {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.dv-banner-pending {
+  background: #fff8f0;
+  border-color: var(--warning);
+}
+
+.dv-banner-correct {
+  background: #f0f8f0;
+  border-color: var(--success);
+}
+
+.dv-banner-wrong {
+  background: #fdf0ee;
+  border-color: var(--danger);
+}
+
+.dv-banner-number {
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 2px;
+}
+
+.dv-banner-result {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.dv-banner-correct .dv-banner-result {
+  color: var(--success);
+}
+
+.dv-banner-wrong .dv-banner-result {
+  color: var(--danger);
+}
+
+.dv-banner-dots {
+  font-weight: 700;
+  color: var(--warning);
+  animation: dots-blink 0.8s infinite;
+}
+
+@keyframes dots-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .dv-toast {
   position: fixed;
   top: 24px;
