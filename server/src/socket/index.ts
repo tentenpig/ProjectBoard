@@ -48,6 +48,7 @@ interface Room {
   players: UserInfo[];
   spectators: UserInfo[];
   botIds: Set<number>;
+  replacementBotIds: Set<number>;  // bots that replaced real players (count as human for EXP)
   gameState: GameState | null;
   davinciState: DaVinciState | null;
   status: 'waiting' | 'playing';
@@ -223,7 +224,7 @@ async function resolveCards(io: Server, room: Room) {
         broadcastGameState(io, room);
 
         // Grant EXP for six-nimmt
-        const humanCount = room.players.filter((p) => !room.botIds.has(p.id)).length;
+        const humanCount = countEffectiveHumans(room);
         const roundExp = calcReward('six-nimmt', 'perRound', humanCount);
         const winExp = calcReward('six-nimmt', 'win', humanCount);
         if (roundExp > 0 || winExp > 0) {
@@ -408,7 +409,7 @@ function daVinciBotTurn(io: Server, room: Room) {
 
         if (state.phase === 'game_over') {
           // Grant EXP
-          const botDvHumanCount = room.players.filter((p) => !room.botIds.has(p.id)).length;
+          const botDvHumanCount = countEffectiveHumans(room);
           const botDvParticipate = calcReward('davinci-code', 'participate', botDvHumanCount);
           const botDvWin = calcReward('davinci-code', 'win', botDvHumanCount);
           if (botDvParticipate > 0 || botDvWin > 0) {
@@ -462,6 +463,12 @@ function daVinciBotTurn(io: Server, room: Room) {
   };
 
   setTimeout(runPhase, 1200);
+}
+
+// Count players that should be treated as "real" for EXP calculation
+// Real humans + bots that replaced humans
+function countEffectiveHumans(room: Room): number {
+  return room.players.filter((p) => !room.botIds.has(p.id) || room.replacementBotIds.has(p.id)).length;
 }
 
 function autoSelectIfLastCard(io: Server, room: Room) {
@@ -528,6 +535,7 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
       bot.nickname = `BOT (${user.nickname})`;
       room.players.push(bot);
       room.botIds.add(bot.id);
+      room.replacementBotIds.add(bot.id);
 
       // Swap player ID in game state
       if (room.gameState) {
@@ -667,6 +675,7 @@ export function setupSocket(io: Server) {
         players: [user],
         spectators: [],
         botIds: new Set(),
+        replacementBotIds: new Set(),
         gameState: null,
         davinciState: null,
         status: 'waiting',
@@ -1009,7 +1018,7 @@ export function setupSocket(io: Server) {
 
             // Grant EXP on game over
             if (room.davinciState && room.davinciState.phase === 'game_over') {
-              const dvHumanCount = room.players.filter((p) => !room.botIds.has(p.id)).length;
+              const dvHumanCount = countEffectiveHumans(room);
               const dvParticipate = calcReward('davinci-code', 'participate', dvHumanCount);
               const dvWin = calcReward('davinci-code', 'win', dvHumanCount);
               if (dvParticipate > 0 || dvWin > 0) {
