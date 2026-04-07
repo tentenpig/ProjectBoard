@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database';
-import { calculateLevel, EXP_REWARDS } from '../config/level';
+import { calculateLevel, calcReward } from '../config/level';
 import {
   GameState,
   initRound,
@@ -217,13 +217,20 @@ async function resolveCards(io: Server, room: Room) {
         broadcastGameState(io, room);
 
         // Grant EXP for six-nimmt
-        const sixRewards = EXP_REWARDS['six-nimmt'];
-        const expRewards = roundResult.scores.map((s: any) => ({
-          playerId: s.playerId,
-          exp: sixRewards.perRound + (roundResult.gameOver && s.totalScore === Math.min(...roundResult.scores.map((x: any) => x.totalScore)) ? sixRewards.win : 0),
-          reason: roundResult.gameOver && s.totalScore === Math.min(...roundResult.scores.map((x: any) => x.totalScore)) ? '젝스님트 승리' : '라운드 완료',
-        }));
-        grantExp(io, room, expRewards);
+        const humanCount = room.players.filter((p) => !room.botIds.has(p.id)).length;
+        const roundExp = calcReward('six-nimmt', 'perRound', humanCount);
+        const winExp = calcReward('six-nimmt', 'win', humanCount);
+        if (roundExp > 0 || winExp > 0) {
+          const minScore = Math.min(...roundResult.scores.map((x: any) => x.totalScore));
+          const expRewards = roundResult.scores
+            .filter((s: any) => !room.botIds.has(s.playerId))
+            .map((s: any) => ({
+              playerId: s.playerId,
+              exp: roundExp + (roundResult.gameOver && s.totalScore === minScore ? winExp : 0),
+              reason: roundResult.gameOver && s.totalScore === minScore ? '젝스님트 승리' : '라운드 완료',
+            }));
+          grantExp(io, room, expRewards);
+        }
 
         // Bots auto-ready for next round
         if (!roundResult.gameOver) {
@@ -395,13 +402,17 @@ function daVinciBotTurn(io: Server, room: Room) {
 
         if (state.phase === 'game_over') {
           // Grant EXP
-          const dvRewards = EXP_REWARDS['davinci-code'];
-          const expRewards = state.players.filter((p) => !room.botIds.has(p.id)).map((p) => ({
-            playerId: p.id,
-            exp: dvRewards.participate + (p.id === state.winnerId ? dvRewards.win : 0),
-            reason: p.id === state.winnerId ? '다빈치 코드 승리' : '게임 참가',
-          }));
-          grantExp(io, room, expRewards);
+          const botDvHumanCount = room.players.filter((p) => !room.botIds.has(p.id)).length;
+          const botDvParticipate = calcReward('davinci-code', 'participate', botDvHumanCount);
+          const botDvWin = calcReward('davinci-code', 'win', botDvHumanCount);
+          if (botDvParticipate > 0 || botDvWin > 0) {
+            const expRewards = state.players.filter((p) => !room.botIds.has(p.id)).map((p) => ({
+              playerId: p.id,
+              exp: botDvParticipate + (p.id === state.winnerId ? botDvWin : 0),
+              reason: p.id === state.winnerId ? '다빈치 코드 승리' : '게임 참가',
+            }));
+            grantExp(io, room, expRewards);
+          }
           return;
         }
 
@@ -923,13 +934,17 @@ export function setupSocket(io: Server) {
 
             // Grant EXP on game over
             if (room.davinciState && room.davinciState.phase === 'game_over') {
-              const dvRewards = EXP_REWARDS['davinci-code'];
-              const expRewards = room.davinciState.players.filter((p) => !room.botIds.has(p.id)).map((p) => ({
-                playerId: p.id,
-                exp: dvRewards.participate + (p.id === room.davinciState!.winnerId ? dvRewards.win : 0),
-                reason: p.id === room.davinciState!.winnerId ? '다빈치 코드 승리' : '게임 참가',
-              }));
-              grantExp(io, room, expRewards);
+              const dvHumanCount = room.players.filter((p) => !room.botIds.has(p.id)).length;
+              const dvParticipate = calcReward('davinci-code', 'participate', dvHumanCount);
+              const dvWin = calcReward('davinci-code', 'win', dvHumanCount);
+              if (dvParticipate > 0 || dvWin > 0) {
+                const expRewards = room.davinciState.players.filter((p) => !room.botIds.has(p.id)).map((p) => ({
+                  playerId: p.id,
+                  exp: dvParticipate + (p.id === room.davinciState!.winnerId ? dvWin : 0),
+                  reason: p.id === room.davinciState!.winnerId ? '다빈치 코드 승리' : '게임 참가',
+                }));
+                grantExp(io, room, expRewards);
+              }
             }
 
             // Next turn might be a bot
