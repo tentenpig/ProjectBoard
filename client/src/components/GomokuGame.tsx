@@ -148,6 +148,7 @@ export default function GomokuGame({ socket, gameState }: Props) {
                       className={`gomoku-cell ${isMyTurn && cell === null && !forbiddenSet.has(`${r},${c}`) ? 'placeable' : ''} ${forbiddenSet.has(`${r},${c}`) && isMyTurn && gameState.myColor === 'black' ? 'forbidden' : ''} ${gameState.lastMove?.row === r && gameState.lastMove?.col === c ? 'last-move' : ''} ${winSet.has(`${r},${c}`) ? 'win-cell' : ''}`}
                       onClick={() => handlePlace(r, c)}
                     >
+                      {[3,7,11].includes(r) && [3,7,11].includes(c) && !cell && <span className="star-point" />}
                       {cell && <div className={`gomoku-stone ${cell}`} />}
                       {!cell && forbiddenSet.has(`${r},${c}`) && isMyTurn && gameState.myColor === 'black' && (
                         <span className="forbidden-mark">✕</span>

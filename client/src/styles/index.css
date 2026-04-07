@@ -2487,7 +2487,7 @@ button {
   display: inline-flex;
   flex-direction: column;
   background: #dcb35c;
-  padding: 12px;
+  padding: 16px;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
@@ -2506,28 +2506,60 @@ button {
   cursor: default;
 }
 
-/* Grid lines */
+/* Grid lines: vertical */
 .gomoku-cell::before {
   content: '';
   position: absolute;
-  background: #8b6914;
-}
-
-.gomoku-cell::before {
   width: 1px;
-  height: 100%;
-  top: 0;
+  background: #8b6914;
   left: 50%;
+  transform: translateX(-50%);
 }
 
+/* Default: full height vertical line */
+.gomoku-cell::before {
+  top: 0;
+  height: 100%;
+}
+
+/* First row: vertical starts from center */
+.gomoku-row:first-child .gomoku-cell::before {
+  top: 50%;
+  height: 50%;
+}
+
+/* Last row: vertical ends at center */
+.gomoku-row:last-child .gomoku-cell::before {
+  top: 0;
+  height: 50%;
+}
+
+/* Grid lines: horizontal */
 .gomoku-cell::after {
   content: '';
   position: absolute;
-  width: 100%;
   height: 1px;
-  left: 0;
-  top: 50%;
   background: #8b6914;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Default: full width horizontal line */
+.gomoku-cell::after {
+  left: 0;
+  width: 100%;
+}
+
+/* First column: horizontal starts from center */
+.gomoku-cell:first-child::after {
+  left: 50%;
+  width: 50%;
+}
+
+/* Last column: horizontal ends at center */
+.gomoku-cell:last-child::after {
+  left: 0;
+  width: 50%;
 }
 
 .gomoku-cell.placeable {
@@ -2542,6 +2574,16 @@ button {
 .gomoku-cell.placeable:hover::after {
   background: var(--accent);
   height: 2px;
+}
+
+.star-point {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #8b6914;
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .gomoku-cell.forbidden {
@@ -2601,6 +2643,11 @@ button {
   .gomoku-cell {
     width: 24px;
     height: 24px;
+  }
+
+  .star-point {
+    width: 6px;
+    height: 6px;
   }
 
   .gomoku-stone {
