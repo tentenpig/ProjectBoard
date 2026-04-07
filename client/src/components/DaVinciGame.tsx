@@ -44,6 +44,7 @@ export default function DaVinciGame({ socket, gameState }: Props) {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [replaceToast, setReplaceToast] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<{ playerId: number; tileIndex: number } | null>(null);
   const [guessNumber, setGuessNumber] = useState<number | null>(null);
   const [guessAnim, setGuessAnim] = useState<{
@@ -92,7 +93,8 @@ export default function DaVinciGame({ socket, gameState }: Props) {
 
     socket.on('davinci:guess_result', handleResult);
     const handleReplaced = (data: { nickname: string; botNickname: string }) => {
-      alert(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+      setReplaceToast(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+      setTimeout(() => setReplaceToast(null), 3000);
     };
 
     socket.on('game:player_replaced', handleReplaced);
@@ -189,6 +191,8 @@ export default function DaVinciGame({ socket, gameState }: Props) {
             </div>
             <div className="my-penalty">{isSpectating ? '관전 중' : `남은 타일: ${gameState.poolCount}개`}</div>
           </header>
+
+          {replaceToast && <div className="replace-toast">{replaceToast}</div>}
 
           {/* Guess animation banner */}
           {guessAnim && (

@@ -56,6 +56,7 @@ export default function Game() {
   const [readyStatus, setReadyStatus] = useState<{ ready: number[]; total: number } | null>(null);
   const [spectators, setSpectators] = useState<{ id: number; nickname: string }[]>([]);
   const [penaltyToast, setPenaltyToast] = useState<{ nickname: string; points: number } | null>(null);
+  const [replaceToast, setReplaceToast] = useState<string | null>(null);
   const [screenFlash, setScreenFlash] = useState(false);
   const [lastPlacement, setLastPlacement] = useState<{ playerId: number; nickname: string; card: Card; rowIndex: number; type: string } | null>(null);
   const [flyingCard, setFlyingCard] = useState<{ card: Card; from: DOMRect; to: DOMRect } | null>(null);
@@ -160,10 +161,8 @@ export default function Game() {
     };
 
     const handlePlayerReplaced = (data: { nickname: string; botNickname: string }) => {
-      setPenaltyToast({ nickname: data.nickname, points: 0 });
-      setTimeout(() => setPenaltyToast(null), 2500);
-      // Reuse penalty toast to show a message - we'll use a simple alert-like approach
-      alert(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+      setReplaceToast(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+      setTimeout(() => setReplaceToast(null), 3000);
     };
 
     socket.on('game:state', handleGameState);
@@ -271,6 +270,9 @@ export default function Game() {
         <span className="penalty-icon">🐂</span>
         <span>{penaltyToast.nickname} +{penaltyToast.points} 벌점!</span>
       </div>
+    )}
+    {replaceToast && (
+      <div className="replace-toast">{replaceToast}</div>
     )}
     <div className="page-main">
     <div className="game-container">

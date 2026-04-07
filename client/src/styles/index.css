@@ -359,6 +359,23 @@ body {
   background: #fdf0ee;
 }
 
+.replace-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 2px solid var(--text-muted);
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 201;
+  box-shadow: 0 4px 20px rgba(44, 36, 24, 0.15);
+  animation: toast-in 0.3s ease-out;
+  white-space: nowrap;
+}
+
 .penalty-icon {
   font-size: 22px;
 }

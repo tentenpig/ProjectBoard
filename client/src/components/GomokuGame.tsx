@@ -44,6 +44,16 @@ export default function GomokuGame({ socket, gameState }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [, setTick] = useState(0);
+  const [replaceToast, setReplaceToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleReplaced = (data: { nickname: string; botNickname: string }) => {
+      setReplaceToast(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+      setTimeout(() => setReplaceToast(null), 3000);
+    };
+    socket.on('game:player_replaced', handleReplaced);
+    return () => { socket.off('game:player_replaced', handleReplaced); };
+  }, [socket]);
 
   const isSpectating = gameState.spectating === true;
   const isMyTurn = !isSpectating && gameState.myColor === gameState.currentColor && gameState.phase === 'playing';
