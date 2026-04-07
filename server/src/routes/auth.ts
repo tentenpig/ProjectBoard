@@ -5,6 +5,7 @@ import pool from '../config/database';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { onlineNicknames } from '../socket/index';
 import { calculateLevel } from '../config/level';
+import { updateLeaderboard } from '../config/redis';
 import balance from '../config/balance.json';
 
 const router = Router();
@@ -52,6 +53,7 @@ router.post('/enter', async (req: Request, res: Response) => {
         dailyReward = balance.dailyLoginExp;
         exp += dailyReward;
         await pool.query('UPDATE users SET exp = ?, last_login_reward = CURDATE() WHERE id = ?', [exp, user.id]);
+        updateLeaderboard(user.id, user.nickname, exp).catch(() => {});
       }
 
       const levelInfo = calculateLevel(exp);
@@ -69,6 +71,7 @@ router.post('/enter', async (req: Request, res: Response) => {
     );
 
     const newUser = { id: result.insertId, nickname: trimmed };
+    updateLeaderboard(newUser.id, trimmed, initialExp).catch(() => {});
     const levelInfo = calculateLevel(initialExp);
     const token = jwt.sign(newUser, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, user: { ...newUser, exp: initialExp, ...levelInfo }, created: true, dailyReward });

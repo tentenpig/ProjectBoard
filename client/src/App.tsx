@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Lobby from './pages/Lobby';
 import Room from './pages/Room';
 import Game from './pages/Game';
+import Ranking from './pages/Ranking';
 
 function AppRoutes() {
   const { token } = useAuth();
@@ -17,6 +18,7 @@ function AppRoutes() {
       ) : (
         <>
           <Route path="/lobby" element={<Lobby />} />
+          <Route path="/ranking" element={<Ranking />} />
           <Route path="/room/:roomId" element={<Room />} />
           <Route path="/game/:roomId" element={<Game />} />
           <Route path="*" element={<Navigate to="/lobby" />} />

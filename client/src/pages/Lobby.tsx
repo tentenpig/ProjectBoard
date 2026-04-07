@@ -150,7 +150,10 @@ export default function Lobby() {
 
           <div className="lobby-actions">
             <h2>대기실</h2>
-            <button onClick={() => setShowCreate(true)} className="btn-primary">방 만들기</button>
+            <div className="lobby-buttons">
+              <button onClick={() => navigate('/ranking')} className="btn-secondary">랭킹</button>
+              <button onClick={() => setShowCreate(true)} className="btn-primary">방 만들기</button>
+            </div>
           </div>
 
           {showCreate && (

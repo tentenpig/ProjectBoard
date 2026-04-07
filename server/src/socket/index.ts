@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database';
 import { calculateLevel, calcReward } from '../config/level';
+import { updateLeaderboard } from '../config/redis';
 import {
   GameState,
   initRound,
@@ -80,12 +81,17 @@ async function grantExp(io: Server, room: Room, rewards: { playerId: number; exp
     if (r.exp <= 0) continue;
     try {
       await pool.query('UPDATE users SET exp = exp + ? WHERE id = ?', [r.exp, r.playerId]);
-      const [rows] = await pool.query<any[]>('SELECT exp FROM users WHERE id = ?', [r.playerId]);
+      const [rows] = await pool.query<any[]>('SELECT id, nickname, exp FROM users WHERE id = ?', [r.playerId]);
       if (rows.length > 0) {
-        const levelInfo = calculateLevel(rows[0].exp);
+        const { id, nickname, exp } = rows[0];
+        const levelInfo = calculateLevel(exp);
+
+        // Update Redis leaderboard
+        updateLeaderboard(id, nickname, exp).catch((err) => console.error('Redis update error:', err));
+
         const s = userSockets.get(r.playerId);
         if (s) {
-          s.emit('exp:gained', { exp: r.exp, totalExp: rows[0].exp, reason: r.reason, ...levelInfo });
+          s.emit('exp:gained', { exp: r.exp, totalExp: exp, reason: r.reason, ...levelInfo });
         }
       }
     } catch (err) {
