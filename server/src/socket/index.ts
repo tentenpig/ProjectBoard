@@ -39,6 +39,7 @@ import {
   resign as gomokuResign,
   getPlayerView as getGomokuPlayerView,
   getSpectatorView as getGomokuSpectatorView,
+  isForbidden,
 } from '../games/gomoku/logic';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -140,6 +141,8 @@ function gomokuBotMove(io: Server, room: Room) {
   for (let r = 0; r < 15; r++) {
     for (let c = 0; c < 15; c++) {
       if (board[r][c] !== null) continue;
+      // Skip forbidden positions for black
+      if (myColor === 'black' && isForbidden(board, r, c)) continue;
       let score = 0;
       const dirs = [[0,1],[1,0],[1,1],[1,-1]];
       for (const [dr, dc] of dirs) {

@@ -24,6 +24,7 @@ interface GomokuStateView {
   lastMove: { row: number; col: number } | null;
   moveCount: number;
   myColor: 'black' | 'white' | null;
+  forbidden: { row: number; col: number }[];
   spectating?: boolean;
 }
 
@@ -68,6 +69,7 @@ export default function GomokuGame({ socket, gameState }: Props) {
 
   const handlePlace = (row: number, col: number) => {
     if (!isMyTurn || gameState.board[row][col] !== null) return;
+    if (forbiddenSet.has(`${row},${col}`)) return;
     socket.emit('gomoku:place', { row, col });
   };
 
@@ -88,6 +90,7 @@ export default function GomokuGame({ socket, gameState }: Props) {
   };
 
   const winSet = new Set(gameState.winLine?.map((p) => `${p.row},${p.col}`) || []);
+  const forbiddenSet = new Set((gameState.forbidden || []).map((p) => `${p.row},${p.col}`));
   const myPlayer = gameState.players.find((p) => p.color === gameState.myColor);
   const opPlayer = gameState.players.find((p) => p.color !== gameState.myColor);
   const blackPlayer = gameState.players.find((p) => p.color === 'black')!;
@@ -118,6 +121,8 @@ export default function GomokuGame({ socket, gameState }: Props) {
             <div className="my-penalty">{isSpectating ? '관전 중' : gameState.myColor === 'black' ? '● 흑' : '○ 백'}</div>
           </header>
 
+          {replaceToast && <div className="replace-toast">{replaceToast}</div>}
+
           {/* Player timers */}
           <div className="gomoku-timers">
             {[blackPlayer, whitePlayer].map((p) => (
@@ -140,10 +145,13 @@ export default function GomokuGame({ socket, gameState }: Props) {
                   {row.map((cell, c) => (
                     <div
                       key={c}
-                      className={`gomoku-cell ${isMyTurn && cell === null ? 'placeable' : ''} ${gameState.lastMove?.row === r && gameState.lastMove?.col === c ? 'last-move' : ''} ${winSet.has(`${r},${c}`) ? 'win-cell' : ''}`}
+                      className={`gomoku-cell ${isMyTurn && cell === null && !forbiddenSet.has(`${r},${c}`) ? 'placeable' : ''} ${forbiddenSet.has(`${r},${c}`) && isMyTurn && gameState.myColor === 'black' ? 'forbidden' : ''} ${gameState.lastMove?.row === r && gameState.lastMove?.col === c ? 'last-move' : ''} ${winSet.has(`${r},${c}`) ? 'win-cell' : ''}`}
                       onClick={() => handlePlace(r, c)}
                     >
                       {cell && <div className={`gomoku-stone ${cell}`} />}
+                      {!cell && forbiddenSet.has(`${r},${c}`) && isMyTurn && gameState.myColor === 'black' && (
+                        <span className="forbidden-mark">✕</span>
+                      )}
                     </div>
                   ))}
                 </div>

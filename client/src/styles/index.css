@@ -2544,6 +2544,20 @@ button {
   height: 2px;
 }
 
+.gomoku-cell.forbidden {
+  cursor: not-allowed;
+}
+
+.forbidden-mark {
+  position: absolute;
+  z-index: 2;
+  font-size: 14px;
+  color: #d84646;
+  font-weight: 700;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .gomoku-cell.last-move {
   background: rgba(174, 86, 48, 0.15);
   border-radius: 50%;
