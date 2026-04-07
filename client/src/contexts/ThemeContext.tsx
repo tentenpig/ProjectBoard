@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type ThemeName = 'ivory' | 'excel';
+type ThemeName = 'ivory' | 'excel' | 'redmine';
 
 interface ThemeContextType {
   theme: ThemeName;
@@ -17,6 +17,7 @@ export function useTheme() {
 const themes: { id: ThemeName; label: string }[] = [
   { id: 'ivory', label: '기본' },
   { id: 'excel', label: 'Excel' },
+  { id: 'redmine', label: 'Redmine' },
 ];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
