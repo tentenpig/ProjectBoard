@@ -1,33 +1,64 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import pool from '../config/database';
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { onlineNicknames } from '../socket/index';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
-let nextId = 1;
+router.post('/enter', async (req: Request, res: Response) => {
+  const { nickname, password } = req.body;
 
-router.post('/enter', (req: Request, res: Response) => {
-  const { nickname } = req.body;
-
-  if (!nickname || typeof nickname !== 'string' || nickname.trim().length === 0) {
-    return res.status(400).json({ error: '닉네임을 입력해주세요.' });
+  if (!nickname || !password) {
+    return res.status(400).json({ error: '닉네임과 비밀번호를 입력해주세요.' });
   }
 
-  if (nickname.trim().length > 20) {
+  const trimmed = nickname.trim();
+  if (trimmed.length > 20) {
     return res.status(400).json({ error: '닉네임은 20자 이하로 입력해주세요.' });
   }
 
-  if (onlineNicknames.has(nickname.trim())) {
-    return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
+  if (password.length < 4) {
+    return res.status(400).json({ error: '비밀번호는 4자 이상이어야 합니다.' });
   }
 
-  const id = nextId++;
-  const user = { id, nickname: nickname.trim() };
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, nickname, password_hash FROM users WHERE nickname = ?',
+      [trimmed]
+    );
 
-  const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+    if (rows.length > 0) {
+      // Existing account: verify password
+      const user = rows[0];
+      if (!(await bcrypt.compare(password, user.password_hash))) {
+        return res.status(401).json({ error: '비밀번호가 올바르지 않습니다.' });
+      }
 
-  res.json({ token, user });
+      if (onlineNicknames.has(user.nickname)) {
+        return res.status(409).json({ error: '이미 접속 중인 계정입니다.' });
+      }
+
+      const token = jwt.sign({ id: user.id, nickname: user.nickname }, JWT_SECRET, { expiresIn: '24h' });
+      return res.json({ token, user: { id: user.id, nickname: user.nickname }, created: false });
+    }
+
+    // New account: create and login
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [result] = await pool.query<ResultSetHeader>(
+      'INSERT INTO users (nickname, password_hash) VALUES (?, ?)',
+      [trimmed, passwordHash]
+    );
+
+    const newUser = { id: result.insertId, nickname: trimmed };
+    const token = jwt.sign(newUser, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ token, user: newUser, created: true });
+  } catch (err) {
+    console.error('Enter error:', err);
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
 });
 
 export default router;

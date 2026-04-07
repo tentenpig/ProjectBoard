@@ -290,6 +290,12 @@ body {
   text-decoration: underline;
 }
 
+.auth-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .error {
   color: var(--danger);
   font-size: 14px;

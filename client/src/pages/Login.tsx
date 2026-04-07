@@ -6,29 +6,28 @@ const SERVER_URL = `http://${window.location.hostname}:3001`;
 
 export default function Login() {
   const [nickname, setNickname] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
 
-    if (!nickname.trim()) return;
+    if (!nickname.trim() || !password) return;
 
     try {
       const res = await fetch(`${SERVER_URL}/api/auth/enter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: nickname.trim() }),
+        body: JSON.stringify({ nickname: nickname.trim(), password }),
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error);
-        return;
-      }
+      if (!res.ok) { setError(data.error); return; }
 
       login(data.token, data.user);
       navigate('/lobby');
@@ -41,7 +40,7 @@ export default function Login() {
     <div className="auth-container">
       <div className="auth-card">
         <h1>네온 보드게임</h1>
-        <h2>닉네임을 입력하고 입장하세요</h2>
+        <h2>닉네임과 비밀번호를 입력하세요</h2>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
@@ -51,9 +50,17 @@ export default function Login() {
             maxLength={20}
             autoFocus
           />
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           {error && <p className="error">{error}</p>}
+          {info && <p className="success">{info}</p>}
           <button type="submit" className="btn-primary">입장</button>
         </form>
+        <p className="auth-hint">처음 사용하는 닉네임은 자동으로 계정이 생성됩니다.</p>
       </div>
     </div>
   );
