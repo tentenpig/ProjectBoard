@@ -522,12 +522,81 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
       room.hostId = humanPlayers[0].id;
     }
 
-    // If game is in progress, abort it
+    // If game is in progress, replace with bot
     if (room.gameState || room.davinciState) {
-      room.gameState = null;
-      room.davinciState = null;
-      room.status = 'waiting';
-      io.to(roomId).emit('game:aborted', `${user.nickname} has left the game.`);
+      const bot = createBot();
+      bot.nickname = `BOT (${user.nickname})`;
+      room.players.push(bot);
+      room.botIds.add(bot.id);
+
+      // Swap player ID in game state
+      if (room.gameState) {
+        const gp = room.gameState.players.find((p) => p.id === user.id);
+        if (gp) {
+          gp.id = bot.id;
+          gp.nickname = bot.nickname;
+        }
+        // If this player was choosing a row, bot auto-chooses
+        if (room.gameState.choosingPlayerId === user.id) {
+          room.gameState.choosingPlayerId = bot.id;
+          setTimeout(() => {
+            botChooseRow(io, room);
+            if (room.gameState) {
+              broadcastGameState(io, room);
+              setTimeout(() => resolveCards(io, room), 800);
+            }
+          }, 500);
+        }
+        // If selecting phase, bot auto-selects
+        if (room.gameState.phase === 'selecting') {
+          botSelectCards(io, room);
+          if (allPlayersSelected(room.gameState)) {
+            beginResolve(room.gameState);
+            io.to(room.id).emit('game:all_selected', room.gameState.sortedPlays.map((sp) => ({
+              playerId: sp.playerId,
+              card: sp.card,
+              nickname: room.players.find((p) => p.id === sp.playerId)?.nickname,
+            })));
+            setTimeout(() => resolveCards(io, room), 1500);
+          }
+        }
+        // Bot auto-ready for round end
+        if (room.gameState.phase === 'round_end') {
+          room.readyForNext.delete(user.id);
+          room.readyForNext.add(bot.id);
+        }
+      }
+
+      if (room.davinciState) {
+        const dp = room.davinciState.players.find((p) => p.id === user.id);
+        if (dp) {
+          dp.id = bot.id;
+          dp.nickname = bot.nickname;
+        }
+        // Update turn order
+        const turnIdx = room.davinciState.turnOrder.indexOf(user.id);
+        if (turnIdx !== -1) room.davinciState.turnOrder[turnIdx] = bot.id;
+        if (room.davinciState.currentPlayerId === user.id) {
+          room.davinciState.currentPlayerId = bot.id;
+          daVinciBotTurn(io, room);
+        }
+        // Update pending joker list
+        const jokerIdx = room.davinciState.pendingJokerPlayerIds.indexOf(user.id);
+        if (jokerIdx !== -1) {
+          room.davinciState.pendingJokerPlayerIds[jokerIdx] = bot.id;
+          // Bot places jokers immediately
+          if (dp) {
+            for (const tile of dp.tiles) {
+              if (tile.joker && (tile as any).sortValue === undefined) {
+                placeJoker(room.davinciState, bot.id, tile.id, Math.floor(Math.random() * 12) + 0.5);
+              }
+            }
+          }
+        }
+      }
+
+      io.to(roomId).emit('game:player_replaced', { nickname: user.nickname, botNickname: bot.nickname });
+      broadcastGameState(io, room);
     }
 
     broadcastRoomState(io, room);

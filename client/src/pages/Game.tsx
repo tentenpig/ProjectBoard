@@ -158,6 +158,13 @@ export default function Game() {
       setSpectators(state.spectators || []);
     };
 
+    const handlePlayerReplaced = (data: { nickname: string; botNickname: string }) => {
+      setPenaltyToast({ nickname: data.nickname, points: 0 });
+      setTimeout(() => setPenaltyToast(null), 2500);
+      // Reuse penalty toast to show a message - we'll use a simple alert-like approach
+      alert(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+    };
+
     socket.on('game:state', handleGameState);
     socket.on('game:event', handleGameEvent);
     socket.on('game:all_selected', handleAllSelected);
@@ -166,6 +173,7 @@ export default function Game() {
     socket.on('game:aborted', handleAborted);
     socket.on('game:ready_status', handleReadyStatus);
     socket.on('room:state', handleRoomState);
+    socket.on('game:player_replaced', handlePlayerReplaced);
 
     // Request current game state on mount
     if (roomId) {
@@ -182,6 +190,7 @@ export default function Game() {
       socket.off('game:ready_status', handleReadyStatus);
       socket.off('game:aborted', handleAborted);
       socket.off('room:state', handleRoomState);
+      socket.off('game:player_replaced', handlePlayerReplaced);
     };
   }, [socket, roomId]);
 

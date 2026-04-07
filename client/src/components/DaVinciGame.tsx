@@ -91,7 +91,15 @@ export default function DaVinciGame({ socket, gameState }: Props) {
     };
 
     socket.on('davinci:guess_result', handleResult);
-    return () => { socket.off('davinci:guess_result', handleResult); };
+    const handleReplaced = (data: { nickname: string; botNickname: string }) => {
+      alert(`${data.nickname}님이 나갔습니다. ${data.botNickname}이(가) 대신합니다.`);
+    };
+
+    socket.on('game:player_replaced', handleReplaced);
+    return () => {
+      socket.off('davinci:guess_result', handleResult);
+      socket.off('game:player_replaced', handleReplaced);
+    };
   }, [socket, gameState.players]);
 
   const handleDraw = () => {
