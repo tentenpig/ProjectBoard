@@ -312,6 +312,141 @@ function botChooseRow(io: Server, room: Room) {
   chooseRow(room.gameState, room.gameState.choosingPlayerId, bestRow);
 }
 
+// ===== Da Vinci Code Bot AI =====
+function daVinciBotTurn(io: Server, room: Room) {
+  if (!room.davinciState) return;
+  const state = room.davinciState;
+  if (!room.botIds.has(state.currentPlayerId)) return;
+
+  const botId = state.currentPlayerId;
+
+  const runPhase = () => {
+    if (!room.davinciState || room.davinciState.currentPlayerId !== botId) return;
+
+    if (state.phase === 'setup_jokers') {
+      // Place jokers at random positions
+      const bot = state.players.find((p) => p.id === botId);
+      if (bot) {
+        for (const tile of bot.tiles) {
+          if (tile.joker && (tile as any).sortValue === undefined) {
+            const pos = Math.floor(Math.random() * 12) + 0.5;
+            placeJoker(state, botId, tile.id, pos);
+          }
+        }
+      }
+      broadcastGameState(io, room);
+      return;
+    }
+
+    if (state.phase === 'drawing') {
+      drawTile(state, botId);
+      broadcastGameState(io, room);
+      setTimeout(runPhase, 800);
+      return;
+    }
+
+    if (state.phase === 'guessing') {
+      // Find a target: pick an opponent with hidden tiles
+      const opponents = state.players.filter((p) => p.id !== botId && !p.eliminated);
+      const target = opponents.find((p) => p.tiles.some((t) => !t.revealed));
+      if (!target) return;
+
+      const hiddenTiles = target.tiles.map((t, i) => ({ tile: t, index: i })).filter((x) => !x.tile.revealed);
+      if (hiddenTiles.length === 0) return;
+
+      // Pick a random hidden tile and make an educated guess
+      const pick = hiddenTiles[Math.floor(Math.random() * hiddenTiles.length)];
+
+      // Gather known info to make a smarter guess
+      const knownNumbers = new Set<string>();
+      for (const p of state.players) {
+        for (const t of p.tiles) {
+          if (t.revealed) knownNumbers.add(`${t.color}_${t.number}`);
+        }
+      }
+      // Bot's own tiles
+      const botPlayer = state.players.find((p) => p.id === botId)!;
+      for (const t of botPlayer.tiles) {
+        knownNumbers.add(`${t.color}_${t.number}`);
+      }
+
+      // Find possible numbers for this tile based on position and color
+      const possibleNums: number[] = [];
+      for (let n = 0; n <= 11; n++) {
+        if (!knownNumbers.has(`${pick.tile.color}_${n}`)) possibleNums.push(n);
+      }
+      if (!knownNumbers.has(`${pick.tile.color}_-1`)) possibleNums.push(-1); // joker
+
+      const guessNum = possibleNums.length > 0
+        ? possibleNums[Math.floor(Math.random() * possibleNums.length)]
+        : Math.floor(Math.random() * 12);
+
+      const result = daVinciGuess(state, botId, target.id, pick.index, guessNum);
+      if (result) {
+        io.to(room.id).emit('davinci:guess_result', {
+          playerId: botId,
+          targetPlayerId: target.id,
+          tileIndex: pick.index,
+          guessedNumber: guessNum,
+          correct: result.correct,
+          revealedTile: result.correct ? result.targetTile : null,
+        });
+        broadcastGameState(io, room);
+
+        if (state.phase === 'game_over') {
+          // Grant EXP
+          const dvRewards = EXP_REWARDS['davinci-code'];
+          const expRewards = state.players.filter((p) => !room.botIds.has(p.id)).map((p) => ({
+            playerId: p.id,
+            exp: dvRewards.participate + (p.id === state.winnerId ? dvRewards.win : 0),
+            reason: p.id === state.winnerId ? '다빈치 코드 승리' : '게임 참가',
+          }));
+          grantExp(io, room, expRewards);
+          return;
+        }
+
+        if (state.phase === 'continue_or_stop') {
+          // Bot decides: continue if correct, but stop sometimes to not be too aggressive
+          setTimeout(() => {
+            if (!room.davinciState || room.davinciState.currentPlayerId !== botId) return;
+            if (Math.random() < 0.4) {
+              continueGuessing(state, botId);
+              broadcastGameState(io, room);
+              setTimeout(runPhase, 800);
+            } else {
+              stopGuessing(state, botId);
+              if (state.phase === 'place_drawn_joker') {
+                const pos = Math.floor(Math.random() * 12) + 0.5;
+                placeDrawnJoker(state, botId, pos);
+              }
+              broadcastGameState(io, room);
+              // Next player might be a bot
+              setTimeout(() => daVinciBotTurn(io, room), 1000);
+            }
+          }, 1000);
+          return;
+        }
+
+        if (state.phase === 'place_drawn_joker') {
+          setTimeout(() => {
+            const pos = Math.floor(Math.random() * 12) + 0.5;
+            placeDrawnJoker(state, botId, pos);
+            broadcastGameState(io, room);
+            setTimeout(() => daVinciBotTurn(io, room), 1000);
+          }, 500);
+          return;
+        }
+
+        // Wrong guess - turn passed, check next player
+        setTimeout(() => daVinciBotTurn(io, room), 1000);
+      }
+      return;
+    }
+  };
+
+  setTimeout(runPhase, 1200);
+}
+
 function autoSelectIfLastCard(io: Server, room: Room) {
   if (!room.gameState || room.gameState.phase !== 'selecting') return;
   const allOneCard = room.gameState.players.every((p) => p.hand.length === 1);
@@ -531,11 +666,10 @@ export function setupSocket(io: Server) {
       }
     });
 
-    // Add bot (host only, six-nimmt only)
+    // Add bot (host only)
     socket.on('room:add_bot', () => {
       for (const [, room] of rooms) {
         if (room.hostId !== user.id || room.status !== 'waiting') continue;
-        if (room.gameType !== 'six-nimmt') return socket.emit('error', '이 게임은 봇을 지원하지 않습니다.');
         if (room.players.length >= room.maxPlayers) return socket.emit('error', '방이 가득 찼습니다.');
 
         const bot = createBot();
@@ -601,12 +735,27 @@ export function setupSocket(io: Server) {
           if (room.gameType === 'davinci-code') {
             room.davinciState = initDaVinci(playerInfos);
 
-            // Schedule auto-start after random 2-4s if no jokers need placement
+            // Bots auto-place jokers
+            for (const botId of room.botIds) {
+              const bot = room.davinciState.players.find((p) => p.id === botId);
+              if (bot) {
+                for (const tile of bot.tiles) {
+                  if (tile.joker) {
+                    const pos = Math.floor(Math.random() * 12) + 0.5;
+                    placeJoker(room.davinciState, botId, tile.id, pos);
+                  }
+                }
+              }
+            }
+
+            // Schedule auto-start after random 2-4s if no human jokers pending
             const delay = 2000 + Math.random() * 2000;
             setTimeout(() => {
               if (room.davinciState && room.davinciState.phase === 'setup_jokers' && room.davinciState.pendingJokerPlayerIds.length === 0) {
                 room.davinciState.phase = 'drawing';
                 broadcastGameState(io, room);
+                // First turn might be a bot
+                daVinciBotTurn(io, room);
               }
             }, delay);
           } else {
@@ -736,6 +885,7 @@ export function setupSocket(io: Server) {
             if (room.davinciState.phase === 'setup_jokers' && room.davinciState.pendingJokerPlayerIds.length === 0) {
               room.davinciState.phase = 'drawing';
               broadcastGameState(io, room);
+              daVinciBotTurn(io, room);
             }
           }
           break;
@@ -772,12 +922,17 @@ export function setupSocket(io: Server) {
             // Grant EXP on game over
             if (room.davinciState && room.davinciState.phase === 'game_over') {
               const dvRewards = EXP_REWARDS['davinci-code'];
-              const expRewards = room.davinciState.players.map((p) => ({
+              const expRewards = room.davinciState.players.filter((p) => !room.botIds.has(p.id)).map((p) => ({
                 playerId: p.id,
                 exp: dvRewards.participate + (p.id === room.davinciState!.winnerId ? dvRewards.win : 0),
                 reason: p.id === room.davinciState!.winnerId ? '다빈치 코드 승리' : '게임 참가',
               }));
               grantExp(io, room, expRewards);
+            }
+
+            // Next turn might be a bot
+            if (room.davinciState && room.davinciState.phase !== 'game_over' && room.davinciState.phase !== 'continue_or_stop') {
+              daVinciBotTurn(io, room);
             }
           }
           break;
@@ -801,6 +956,7 @@ export function setupSocket(io: Server) {
         if (room.davinciState && room.players.find((p) => p.id === user.id)) {
           if (stopGuessing(room.davinciState, user.id)) {
             broadcastGameState(io, room);
+            daVinciBotTurn(io, room);
           }
           break;
         }
@@ -812,6 +968,7 @@ export function setupSocket(io: Server) {
         if (room.davinciState && room.players.find((p) => p.id === user.id)) {
           if (placeDrawnJoker(room.davinciState, user.id, sortValue)) {
             broadcastGameState(io, room);
+            daVinciBotTurn(io, room);
           }
           break;
         }

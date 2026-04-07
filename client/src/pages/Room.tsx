@@ -97,7 +97,7 @@ export default function Room() {
             <div className="player-list">
               <div className="player-list-header">
                 <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
-                {isHost && roomState.gameType === 'six-nimmt' && roomState.players.length < roomState.maxPlayers && (
+                {isHost && roomState.players.length < roomState.maxPlayers && (
                   <button onClick={() => socket!.emit('room:add_bot')} className="btn-secondary btn-small">+ 봇 추가</button>
                 )}
               </div>
