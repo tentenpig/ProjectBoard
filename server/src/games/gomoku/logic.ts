@@ -25,144 +25,271 @@ export interface GomokuState {
   turnStartedAt: number;
 }
 
-// ===== Helpers =====
 const DIRS: [number, number][] = [[0, 1], [1, 0], [1, 1], [1, -1]];
 
 function inBounds(r: number, c: number): boolean {
   return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
 }
 
-// Count consecutive stones in one direction
-function countConsecutive(board: Stone[][], r: number, c: number, dr: number, dc: number, color: Stone): number {
-  let count = 0;
-  for (let i = 1; i < BOARD_SIZE; i++) {
-    const nr = r + dr * i, nc = c + dc * i;
-    if (!inBounds(nr, nc) || board[nr][nc] !== color) break;
-    count++;
-  }
-  return count;
+function get(board: Stone[][], r: number, c: number): Stone {
+  return inBounds(r, c) ? board[r][c] : 'wall' as any;
 }
 
-// Get the full line length through (r,c) in a direction
-function lineLength(board: Stone[][], r: number, c: number, dr: number, dc: number, color: Stone): number {
-  return 1 + countConsecutive(board, r, c, dr, dc, color) + countConsecutive(board, r, c, -dr, -dc, color);
-}
+// ===== Pattern-based line extraction =====
+// Extract a "window" of cells along a direction centered on (r,c)
+// Returns the pattern string and positions
+function extractLine(board: Stone[][], r: number, c: number, dr: number, dc: number, color: Stone): { pattern: string; positions: { r: number; c: number }[] } {
+  const positions: { r: number; c: number }[] = [];
+  let pattern = '';
 
-// Check if there's an exact 5-in-a-row through (r,c) for the color
-function hasExactFive(board: Stone[][], r: number, c: number, color: Stone): boolean {
-  for (const [dr, dc] of DIRS) {
-    const len = lineLength(board, r, c, dr, dc, color);
-    if (len === 5) return true;
-    // For white, 5+ is still a win (no overline restriction)
-    if (color === 'white' && len >= 5) return true;
-  }
-  return false;
-}
-
-// ===== Overline (長目) check for black =====
-function hasOverline(board: Stone[][], r: number, c: number): boolean {
-  for (const [dr, dc] of DIRS) {
-    if (lineLength(board, r, c, dr, dc, 'black') >= 6) return true;
-  }
-  return false;
-}
-
-// ===== Open-line analysis for renju =====
-// An "open three" is a line of exactly 3 that can become an open four (eventually 5).
-// An "open four" is a line of exactly 4 with at least one open end that can reach 5.
-
-interface LineInfo {
-  length: number;
-  openEnds: number; // 0, 1, or 2
-}
-
-function analyzeLine(board: Stone[][], r: number, c: number, dr: number, dc: number, color: Stone): LineInfo {
-  // Count forward
-  let fwd = 0;
-  for (let i = 1; i < BOARD_SIZE; i++) {
-    const nr = r + dr * i, nc = c + dc * i;
-    if (!inBounds(nr, nc) || board[nr][nc] !== color) break;
-    fwd++;
-  }
-  // Check forward open end
-  const fwdEnd = { r: r + dr * (fwd + 1), c: c + dc * (fwd + 1) };
-  const fwdOpen = inBounds(fwdEnd.r, fwdEnd.c) && board[fwdEnd.r][fwdEnd.c] === null;
-
-  // Count backward
-  let bwd = 0;
-  for (let i = 1; i < BOARD_SIZE; i++) {
+  // Go backward to find start
+  let startR = r, startC = c;
+  for (let i = 1; i <= 5; i++) {
     const nr = r - dr * i, nc = c - dc * i;
-    if (!inBounds(nr, nc) || board[nr][nc] !== color) break;
-    bwd++;
+    if (!inBounds(nr, nc)) break;
+    startR = nr;
+    startC = nc;
   }
-  // Check backward open end
-  const bwdEnd = { r: r - dr * (bwd + 1), c: c - dc * (bwd + 1) };
-  const bwdOpen = inBounds(bwdEnd.r, bwdEnd.c) && board[bwdEnd.r][bwdEnd.c] === null;
 
-  return {
-    length: 1 + fwd + bwd,
-    openEnds: (fwdOpen ? 1 : 0) + (bwdOpen ? 1 : 0),
-  };
+  // Read forward from start
+  let cr = startR, cc = startC;
+  for (let i = 0; i < 11; i++) { // max window
+    if (!inBounds(cr, cc)) {
+      pattern += 'W';
+      positions.push({ r: cr, c: cc });
+    } else if (board[cr][cc] === color) {
+      pattern += 'X';
+      positions.push({ r: cr, c: cc });
+    } else if (board[cr][cc] === null) {
+      pattern += '.';
+      positions.push({ r: cr, c: cc });
+    } else {
+      pattern += 'W';
+      positions.push({ r: cr, c: cc });
+    }
+    cr += dr;
+    cc += dc;
+  }
+
+  return { pattern, positions };
 }
 
-// Count "open threes" created by placing black at (r,c)
-// Open three: exactly 3 in a row with 2 open ends
-function countOpenThrees(board: Stone[][], r: number, c: number): number {
-  let count = 0;
-  for (const [dr, dc] of DIRS) {
-    const info = analyzeLine(board, r, c, dr, dc, 'black');
-    if (info.length === 3 && info.openEnds === 2) {
-      // Verify this three can actually form a non-forbidden four
-      // by checking if extending would not create overline
-      count++;
+// ===== Exact line length through (r,c) =====
+function lineLength(board: Stone[][], r: number, c: number, dr: number, dc: number, color: Stone): number {
+  let len = 1;
+  for (let i = 1; i < BOARD_SIZE; i++) {
+    if (get(board, r + dr * i, c + dc * i) !== color) break;
+    len++;
+  }
+  for (let i = 1; i < BOARD_SIZE; i++) {
+    if (get(board, r - dr * i, c - dc * i) !== color) break;
+    len++;
+  }
+  return len;
+}
+
+// ===== Count "open fours" in a direction =====
+// Open four: exactly 4 stones where placing one more makes 5, with the missing spot being empty
+// Patterns: .XXXX. (both ends open) or XXXX. / .XXXX (one end open)
+function isOpenFourDir(board: Stone[][], r: number, c: number, dr: number, dc: number): boolean {
+  const { pattern } = extractLine(board, r, c, dr, dc, 'black');
+  // Find the position of (r,c) in the pattern - it should be 'X'
+  // Check for open four patterns containing position of (r,c)
+  // Open four with both ends: .XXXX.
+  // Four with one end: .XXXX or XXXX.
+  const fourPatterns = ['.XXXX.', '.XXXXW', 'WXXXX.'];
+  for (const fp of fourPatterns) {
+    let idx = pattern.indexOf(fp);
+    while (idx !== -1) {
+      // Count X's
+      const xCount = (fp.match(/X/g) || []).length;
+      if (xCount === 4) return true;
+      idx = pattern.indexOf(fp, idx + 1);
     }
   }
+  return false;
+}
+
+// ===== Renju: count "live threes" (活三) =====
+// A live three is a pattern where one move creates an open four (.XXXX.)
+// Live three patterns:
+//   .XX.X.  .X.XX.  ..XXX.  .XXX..  .X.XX.  .XX.X.
+// Simplified: check if placing stone creates a line of 3 that has potential to become open four
+
+function countLiveThrees(board: Stone[][], r: number, c: number): number {
+  // Stone already placed at (r,c)
+  let count = 0;
+
+  for (const [dr, dc] of DIRS) {
+    // Extract the line pattern
+    const { pattern, positions } = extractLine(board, r, c, dr, dc, 'black');
+
+    // Find index of (r,c) in positions
+    const myIdx = positions.findIndex((p) => p.r === r && p.c === c);
+    if (myIdx === -1) continue;
+
+    // Check if placing at (r,c) created a live three by trying each empty spot
+    // A live three means: there exists an empty cell in this direction where placing
+    // would create an open four (exactly 4 with both ends open)
+
+    // Try each empty spot in the pattern near our position
+    let isLiveThree = false;
+
+    for (let i = Math.max(0, myIdx - 4); i < Math.min(positions.length, myIdx + 5); i++) {
+      const pos = positions[i];
+      if (!inBounds(pos.r, pos.c) || board[pos.r][pos.c] !== null) continue;
+
+      // Temporarily place
+      board[pos.r][pos.c] = 'black';
+
+      // Check if this creates an open four (exactly 4 in a row with both ends open)
+      let fwd = 0, bwd = 0;
+      for (let j = 1; j < 6; j++) {
+        if (get(board, pos.r + dr * j, pos.c + dc * j) !== 'black') break;
+        fwd++;
+      }
+      for (let j = 1; j < 6; j++) {
+        if (get(board, pos.r - dr * j, pos.c - dc * j) !== 'black') break;
+        bwd++;
+      }
+      const totalLine = 1 + fwd + bwd;
+
+      if (totalLine === 4) {
+        // Check both ends are open
+        const endFwd = { r: pos.r + dr * (fwd + 1), c: pos.c + dc * (fwd + 1) };
+        const endBwd = { r: pos.r - dr * (bwd + 1), c: pos.c - dc * (bwd + 1) };
+        const fwdOpen = inBounds(endFwd.r, endFwd.c) && board[endFwd.r][endFwd.c] === null;
+        const bwdOpen = inBounds(endBwd.r, endBwd.c) && board[endBwd.r][endBwd.c] === null;
+
+        if (fwdOpen && bwdOpen) {
+          // Also check that this empty spot is not itself a forbidden move
+          // (to avoid recursive issues, we skip this deep check for performance)
+          isLiveThree = true;
+          board[pos.r][pos.c] = null;
+          break;
+        }
+      }
+
+      board[pos.r][pos.c] = null;
+    }
+
+    if (isLiveThree) count++;
+  }
+
   return count;
 }
 
-// Count "fours" created by placing black at (r,c)
-// Four: exactly 4 in a row with at least 1 open end
+// ===== Renju: count "fours" (사) =====
 function countFours(board: Stone[][], r: number, c: number): number {
   let count = 0;
+
   for (const [dr, dc] of DIRS) {
-    const info = analyzeLine(board, r, c, dr, dc, 'black');
-    if (info.length === 4 && info.openEnds >= 1) {
-      count++;
+    const len = lineLength(board, r, c, dr, dc, 'black');
+    if (len === 4) {
+      // Check at least one end is open
+      let fwd = 0, bwd = 0;
+      for (let i = 1; i < 6; i++) {
+        if (get(board, r + dr * i, c + dc * i) !== 'black') break;
+        fwd++;
+      }
+      for (let i = 1; i < 6; i++) {
+        if (get(board, r - dr * i, c - dc * i) !== 'black') break;
+        bwd++;
+      }
+      const endFwd = { r: r + dr * (fwd + 1), c: c + dc * (fwd + 1) };
+      const endBwd = { r: r - dr * (bwd + 1), c: c - dc * (bwd + 1) };
+      const fwdOpen = inBounds(endFwd.r, endFwd.c) && board[endFwd.r][endFwd.c] === null;
+      const bwdOpen = inBounds(endBwd.r, endBwd.c) && board[endBwd.r][endBwd.c] === null;
+      if (fwdOpen || bwdOpen) count++;
     }
+
+    // Also check for "broken four": X.XXX, XX.XX, XXX.X patterns
+    // These are fours with a gap that still threaten to make 5
+    const { pattern, positions } = extractLine(board, r, c, dr, dc, 'black');
+    const myIdx = positions.findIndex((p) => p.r === r && p.c === c);
+    if (myIdx === -1) continue;
+
+    // Look for patterns where filling one empty makes exactly 5
+    for (let i = Math.max(0, myIdx - 4); i < Math.min(positions.length, myIdx + 5); i++) {
+      const pos = positions[i];
+      if (!inBounds(pos.r, pos.c) || board[pos.r][pos.c] !== null) continue;
+
+      board[pos.r][pos.c] = 'black';
+      const newLen = lineLength(board, pos.r, pos.c, dr, dc, 'black');
+      board[pos.r][pos.c] = null;
+
+      if (newLen === 5) {
+        // This empty spot completes a five - so current position contributes to a "four"
+        // But only count if the line through (r,c) is part of this
+        const lenThroughMe = lineLength(board, r, c, dr, dc, 'black');
+        if (lenThroughMe >= 3) { // (r,c) is part of the four
+          count++;
+          break; // Only count once per direction
+        }
+      }
+    }
+  }
+
+  // Deduplicate: each direction counted at most once
+  // The above may double-count. Use a simpler approach:
+  return Math.min(count, 4); // cap at 4 directions
+}
+
+// Simpler four counting: for each direction, check if there's a way to make exactly 5 by filling one gap
+function countFoursSimple(board: Stone[][], r: number, c: number): number {
+  let count = 0;
+  for (const [dr, dc] of DIRS) {
+    let hasFour = false;
+    // Check all empty positions in this direction that would make a 5-line through (r,c)
+    for (let offset = -4; offset <= 4; offset++) {
+      const testR = r + dr * offset;
+      const testC = c + dc * offset;
+      if (!inBounds(testR, testC) || board[testR][testC] !== null) continue;
+      if (testR === r && testC === c) continue;
+
+      board[testR][testC] = 'black';
+      const len = lineLength(board, r, c, dr, dc, 'black');
+      board[testR][testC] = null;
+
+      if (len === 5) {
+        hasFour = true;
+        break;
+      }
+    }
+    if (hasFour) count++;
   }
   return count;
 }
 
-// ===== Renju forbidden move check for BLACK =====
+// ===== Main forbidden check =====
 export function isForbidden(board: Stone[][], r: number, c: number): boolean {
   if (board[r][c] !== null) return false;
 
-  // Temporarily place
   board[r][c] = 'black';
 
-  // If it makes exactly 5, it's NOT forbidden (winning move)
-  let isExactFive = false;
+  // If it makes exactly 5 in any direction, NOT forbidden
   for (const [dr, dc] of DIRS) {
     if (lineLength(board, r, c, dr, dc, 'black') === 5) {
-      isExactFive = true;
+      board[r][c] = null;
+      return false;
+    }
+  }
+
+  // Overline (6+)
+  let overline = false;
+  for (const [dr, dc] of DIRS) {
+    if (lineLength(board, r, c, dr, dc, 'black') >= 6) {
+      overline = true;
       break;
     }
   }
 
-  if (isExactFive) {
-    board[r][c] = null;
-    return false;
-  }
+  // Double-three (3-3)
+  const liveThrees = countLiveThrees(board, r, c);
+  const doubleThree = liveThrees >= 2;
 
-  // Check overline (6+)
-  const overline = hasOverline(board, r, c);
-
-  // Check double-three (3-3)
-  const openThrees = countOpenThrees(board, r, c);
-  const doubleThree = openThrees >= 2;
-
-  // Check double-four (4-4)
-  const fours = countFours(board, r, c);
+  // Double-four (4-4)
+  const fours = countFoursSimple(board, r, c);
   const doubleFour = fours >= 2;
 
   board[r][c] = null;
@@ -170,7 +297,6 @@ export function isForbidden(board: Stone[][], r: number, c: number): boolean {
   return overline || doubleThree || doubleFour;
 }
 
-// Get all forbidden positions for black
 export function getForbiddenPositions(board: Stone[][]): { row: number; col: number }[] {
   const forbidden: { row: number; col: number }[] = [];
   for (let r = 0; r < BOARD_SIZE; r++) {
@@ -200,10 +326,8 @@ function checkWin(board: Stone[][], row: number, col: number, color: Stone): { r
     }
 
     if (color === 'black') {
-      // Black must have EXACTLY 5
       if (line.length === 5) return line;
     } else {
-      // White wins with 5 or more
       if (line.length >= 5) return line.slice(0, 5);
     }
   }
@@ -257,12 +381,10 @@ export function placeStone(state: GomokuState, playerId: number, row: number, co
 
   if (!inBounds(row, col) || state.board[row][col] !== null) return false;
 
-  // Renju: check forbidden for black
   if (state.currentColor === 'black' && isForbidden(state.board, row, col)) {
     return false;
   }
 
-  // Deduct time
   const elapsed = Date.now() - state.turnStartedAt;
   player.totalTime = Math.max(0, player.totalTime - elapsed);
   player.moveTime = state.moveTimeLimit;
@@ -271,7 +393,6 @@ export function placeStone(state: GomokuState, playerId: number, row: number, co
   state.lastMove = { row, col };
   state.moveCount++;
 
-  // Check win
   const winLine = checkWin(state.board, row, col, state.currentColor);
   if (winLine) {
     state.phase = 'game_over';
@@ -281,7 +402,6 @@ export function placeStone(state: GomokuState, playerId: number, row: number, co
     return true;
   }
 
-  // Check draw
   if (state.moveCount >= BOARD_SIZE * BOARD_SIZE) {
     state.phase = 'game_over';
     state.winnerId = null;
@@ -289,7 +409,6 @@ export function placeStone(state: GomokuState, playerId: number, row: number, co
     return true;
   }
 
-  // Switch turn
   state.currentColor = state.currentColor === 'black' ? 'white' : 'black';
   const nextPlayer = state.players.find((p) => p.color === state.currentColor)!;
   nextPlayer.moveTime = state.moveTimeLimit;
@@ -323,7 +442,6 @@ export function getPlayerView(state: GomokuState, playerId: number) {
   const elapsed = state.phase === 'playing' ? now - state.turnStartedAt : 0;
   const currentPlayer = state.players.find((p) => p.color === state.currentColor)!;
 
-  // Calculate forbidden positions if it's black's turn
   const forbidden = state.phase === 'playing' && state.currentColor === 'black'
     ? getForbiddenPositions(state.board) : [];
 
