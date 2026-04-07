@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import pool from '../config/database';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { onlineNicknames } from '../socket/index';
+import { calculateLevel } from '../config/level';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -26,7 +27,7 @@ router.post('/enter', async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nickname, password_hash FROM users WHERE nickname = ?',
+      'SELECT id, nickname, password_hash, exp FROM users WHERE nickname = ?',
       [trimmed]
     );
 
@@ -41,8 +42,9 @@ router.post('/enter', async (req: Request, res: Response) => {
         return res.status(409).json({ error: '이미 접속 중인 계정입니다.' });
       }
 
+      const levelInfo = calculateLevel(user.exp);
       const token = jwt.sign({ id: user.id, nickname: user.nickname }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ token, user: { id: user.id, nickname: user.nickname }, created: false });
+      return res.json({ token, user: { id: user.id, nickname: user.nickname, exp: user.exp, ...levelInfo }, created: false });
     }
 
     // New account: create and login
@@ -53,8 +55,9 @@ router.post('/enter', async (req: Request, res: Response) => {
     );
 
     const newUser = { id: result.insertId, nickname: trimmed };
+    const levelInfo = calculateLevel(0);
     const token = jwt.sign(newUser, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: newUser, created: true });
+    res.json({ token, user: { ...newUser, exp: 0, ...levelInfo }, created: true });
   } catch (err) {
     console.error('Enter error:', err);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });

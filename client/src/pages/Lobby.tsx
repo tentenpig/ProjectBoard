@@ -117,6 +117,7 @@ export default function Lobby() {
               <select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value as any)}>
                 {themes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
+              <span className="user-level">Lv.{user?.level || 1}</span>
               <span>{user?.nickname}</span>
               <button onClick={logout} className="btn-secondary">로그아웃</button>
             </div>

@@ -11,7 +11,7 @@ export function useSocket() {
 }
 
 export function SocketProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { token, updateUser } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
@@ -39,6 +39,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     s.on('error', (msg) => {
       console.error('[Socket] Server error:', msg);
+    });
+
+    s.on('exp:gained', (data: { exp: number; totalExp: number; level: number; currentExp: number; nextLevelExp: number }) => {
+      updateUser({ exp: data.totalExp, level: data.level, currentExp: data.currentExp, nextLevelExp: data.nextLevelExp });
     });
 
     setSocket(s);

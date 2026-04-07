@@ -440,6 +440,15 @@ button {
   color: var(--text-muted);
 }
 
+.user-level {
+  background: var(--accent);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .lobby-actions {
   display: flex;
   justify-content: space-between;

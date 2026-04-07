@@ -1,5 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import pool from '../config/database';
+import { calculateLevel, EXP_REWARDS } from '../config/level';
 import {
   GameState,
   initRound,
@@ -62,6 +64,25 @@ function addChatMessage(channel: string, msg: { nickname: string; text: string; 
   const history = chatHistory.get(channel)!;
   history.push(msg);
   if (history.length > CHAT_HISTORY_LIMIT) history.shift();
+}
+
+async function grantExp(io: Server, room: Room, rewards: { playerId: number; exp: number; reason: string }[]) {
+  for (const r of rewards) {
+    if (r.exp <= 0) continue;
+    try {
+      await pool.query('UPDATE users SET exp = exp + ? WHERE id = ?', [r.exp, r.playerId]);
+      const [rows] = await pool.query<any[]>('SELECT exp FROM users WHERE id = ?', [r.playerId]);
+      if (rows.length > 0) {
+        const levelInfo = calculateLevel(rows[0].exp);
+        const s = userSockets.get(r.playerId);
+        if (s) {
+          s.emit('exp:gained', { exp: r.exp, totalExp: rows[0].exp, reason: r.reason, ...levelInfo });
+        }
+      }
+    } catch (err) {
+      console.error('Grant EXP error:', err);
+    }
+  }
 }
 
 function broadcastRoomList(io: Server) {
@@ -162,6 +183,15 @@ async function resolveCards(io: Server, room: Room) {
         const roundResult = endRound(room.gameState);
         io.to(room.id).emit('game:round_end', roundResult);
         broadcastGameState(io, room);
+
+        // Grant EXP for six-nimmt
+        const sixRewards = EXP_REWARDS['six-nimmt'];
+        const expRewards = roundResult.scores.map((s: any) => ({
+          playerId: s.playerId,
+          exp: sixRewards.perRound + (roundResult.gameOver && s.totalScore === Math.min(...roundResult.scores.map((x: any) => x.totalScore)) ? sixRewards.win : 0),
+          reason: roundResult.gameOver && s.totalScore === Math.min(...roundResult.scores.map((x: any) => x.totalScore)) ? '젝스님트 승리' : '라운드 완료',
+        }));
+        grantExp(io, room, expRewards);
         return;
       }
 
@@ -580,6 +610,17 @@ export function setupSocket(io: Server) {
               revealedTile: result.correct ? result.targetTile : null,
             });
             broadcastGameState(io, room);
+
+            // Grant EXP on game over
+            if (room.davinciState && room.davinciState.phase === 'game_over') {
+              const dvRewards = EXP_REWARDS['davinci-code'];
+              const expRewards = room.davinciState.players.map((p) => ({
+                playerId: p.id,
+                exp: dvRewards.participate + (p.id === room.davinciState!.winnerId ? dvRewards.win : 0),
+                reason: p.id === room.davinciState!.winnerId ? '다빈치 코드 승리' : '게임 참가',
+              }));
+              grantExp(io, room, expRewards);
+            }
           }
           break;
         }
