@@ -46,10 +46,19 @@ interface Room {
   maxPlayers: number;
   players: UserInfo[];
   spectators: UserInfo[];
+  botIds: Set<number>;
   gameState: GameState | null;
   davinciState: DaVinciState | null;
   status: 'waiting' | 'playing';
   readyForNext: Set<number>;
+}
+
+let nextBotId = -1;
+function createBot(): UserInfo {
+  const id = nextBotId--;
+  const names = ['알파', '베타', '감마', '델타', '엡실론', '제타', '에타', '세타', '이오타', '카파'];
+  const name = names[Math.abs(id + 1) % names.length];
+  return { id, nickname: `BOT ${name}` };
 }
 
 const rooms = new Map<string, Room>();
@@ -109,6 +118,7 @@ function broadcastRoomState(io: Server, room: Room) {
     maxPlayers: room.maxPlayers,
     players: room.players.map((p) => ({ id: p.id, nickname: p.nickname })),
     spectators: room.spectators.map((s) => ({ id: s.id, nickname: s.nickname })),
+    botIds: Array.from(room.botIds),
     status: room.status,
   });
 }
@@ -163,7 +173,29 @@ async function resolveCards(io: Server, room: Room) {
         playerId: result.playerId,
         card: result.card,
       });
-      return; // Wait for player to choose
+
+      // If it's a bot, auto-choose after short delay
+      if (room.botIds.has(result.playerId)) {
+        setTimeout(() => {
+          botChooseRow(io, room);
+          if (room.gameState) {
+            const chooseResult = room.gameState.sortedPlays[room.gameState.currentResolveIndex - 1];
+            if (chooseResult) {
+              io.to(room.id).emit('game:event', {
+                type: 'took_row',
+                playerId: result.playerId,
+                card: result.card,
+                rowIndex: room.gameState.rows.findIndex((r) => r[0]?.number === result.card.number),
+              });
+            }
+            broadcastGameState(io, room);
+            setTimeout(() => resolveCards(io, room), 800);
+          }
+        }, 1000);
+        return;
+      }
+
+      return; // Wait for human player to choose
     }
 
     // Broadcast the placement event
@@ -192,6 +224,13 @@ async function resolveCards(io: Server, room: Room) {
           reason: roundResult.gameOver && s.totalScore === Math.min(...roundResult.scores.map((x: any) => x.totalScore)) ? '젝스님트 승리' : '라운드 완료',
         }));
         grantExp(io, room, expRewards);
+
+        // Bots auto-ready for next round
+        if (!roundResult.gameOver) {
+          for (const botId of room.botIds) {
+            room.readyForNext.add(botId);
+          }
+        }
         return;
       }
 
@@ -200,10 +239,77 @@ async function resolveCards(io: Server, room: Room) {
       room.gameState.sortedPlays = [];
       room.gameState.currentResolveIndex = 0;
       autoSelectIfLastCard(io, room);
+      if (room.gameState.phase === 'selecting') {
+        botSelectCards(io, room);
+      }
       broadcastGameState(io, room);
       return;
     }
   }
+}
+
+function botSelectCards(io: Server, room: Room) {
+  if (!room.gameState || room.gameState.phase !== 'selecting') return;
+
+  for (const botId of room.botIds) {
+    const player = room.gameState.players.find((p) => p.id === botId);
+    if (!player || player.selectedCard || player.hand.length === 0) continue;
+
+    // Simple AI: pick a card that fits well
+    // Prefer cards slightly above a row's last card, avoid very low/high
+    const rows = room.gameState.rows;
+    const rowEnds = rows.map((r) => r[r.length - 1].number);
+    const hand = player.hand;
+
+    let bestCard = hand[Math.floor(Math.random() * hand.length)];
+    let bestScore = -Infinity;
+
+    for (const card of hand) {
+      let score = 0;
+      // Find which row this card would go to
+      let targetRowEnd = -1;
+      for (const end of rowEnds) {
+        if (end < card.number && end > targetRowEnd) targetRowEnd = end;
+      }
+      if (targetRowEnd >= 0) {
+        // Card fits a row - prefer small gap
+        const gap = card.number - targetRowEnd;
+        score = 100 - gap;
+        // Avoid being the 5th card in a row
+        const rowIdx = rowEnds.indexOf(targetRowEnd);
+        if (rows[rowIdx].length >= 4) score -= 50;
+      } else {
+        // Card lower than all rows - bad
+        score = -card.number;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCard = card;
+      }
+    }
+
+    selectCard(room.gameState, botId, bestCard.number);
+  }
+}
+
+function botChooseRow(io: Server, room: Room) {
+  if (!room.gameState || room.gameState.phase !== 'choosing_row') return;
+  if (!room.gameState.choosingPlayerId || !room.botIds.has(room.gameState.choosingPlayerId)) return;
+
+  // Choose row with fewest bull heads
+  const rows = room.gameState.rows;
+  let bestRow = 0;
+  let bestPenalty = Infinity;
+  for (let i = 0; i < rows.length; i++) {
+    const penalty = rows[i].reduce((s, c) => s + c.bullHeads, 0);
+    if (penalty < bestPenalty) {
+      bestPenalty = penalty;
+      bestRow = i;
+    }
+  }
+
+  chooseRow(room.gameState, room.gameState.choosingPlayerId, bestRow);
 }
 
 function autoSelectIfLastCard(io: Server, room: Room) {
@@ -337,6 +443,7 @@ export function setupSocket(io: Server) {
         maxPlayers: Math.min(Math.max(maxPlayers, 2), gameType === 'davinci-code' ? 4 : 10),
         players: [user],
         spectators: [],
+        botIds: new Set(),
         gameState: null,
         davinciState: null,
         status: 'waiting',
@@ -424,6 +531,36 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // Add bot (host only, six-nimmt only)
+    socket.on('room:add_bot', () => {
+      for (const [, room] of rooms) {
+        if (room.hostId !== user.id || room.status !== 'waiting') continue;
+        if (room.gameType !== 'six-nimmt') return socket.emit('error', '이 게임은 봇을 지원하지 않습니다.');
+        if (room.players.length >= room.maxPlayers) return socket.emit('error', '방이 가득 찼습니다.');
+
+        const bot = createBot();
+        room.players.push(bot);
+        room.botIds.add(bot.id);
+        broadcastRoomState(io, room);
+        broadcastRoomList(io);
+        break;
+      }
+    });
+
+    // Remove bot (host only)
+    socket.on('room:remove_bot', (botId: number) => {
+      for (const [, room] of rooms) {
+        if (room.hostId !== user.id || room.status !== 'waiting') continue;
+        if (!room.botIds.has(botId)) continue;
+
+        room.players = room.players.filter((p) => p.id !== botId);
+        room.botIds.delete(botId);
+        broadcastRoomState(io, room);
+        broadcastRoomList(io);
+        break;
+      }
+    });
+
     // Update room settings (host only)
     socket.on('room:update_settings', ({ name, maxPlayers }: { name?: string; maxPlayers?: number }) => {
       for (const [, room] of rooms) {
@@ -479,6 +616,23 @@ export function setupSocket(io: Server) {
           broadcastRoomList(io);
           broadcastGameState(io, room);
           io.to(room.id).emit('game:started');
+
+          // Bots auto-select after short delay
+          if (room.gameState && room.botIds.size > 0) {
+            setTimeout(() => {
+              botSelectCards(io, room);
+              if (room.gameState && allPlayersSelected(room.gameState)) {
+                beginResolve(room.gameState);
+                io.to(room.id).emit('game:all_selected', room.gameState.sortedPlays.map((sp) => ({
+                  playerId: sp.playerId,
+                  card: sp.card,
+                  nickname: room.players.find((p) => p.id === sp.playerId)?.nickname,
+                })));
+                setTimeout(() => resolveCards(io, room), 1500);
+              }
+              broadcastGameState(io, room);
+            }, 1000);
+          }
           break;
         }
       }
@@ -489,17 +643,17 @@ export function setupSocket(io: Server) {
       for (const [, room] of rooms) {
         if (room.gameState && room.players.find((p) => p.id === user.id)) {
           if (selectCard(room.gameState, user.id, cardNumber)) {
+            // Bots auto-select when a human selects
+            botSelectCards(io, room);
             broadcastGameState(io, room);
 
             if (allPlayersSelected(room.gameState)) {
               beginResolve(room.gameState);
-              // Show all selected cards before resolving
               io.to(room.id).emit('game:all_selected', room.gameState.sortedPlays.map((sp) => ({
                 playerId: sp.playerId,
                 card: sp.card,
                 nickname: room.players.find((p) => p.id === sp.playerId)?.nickname,
               })));
-
               setTimeout(() => resolveCards(io, room), 1500);
             }
           }
@@ -560,6 +714,10 @@ export function setupSocket(io: Server) {
         if (room.readyForNext.size >= room.players.length) {
           room.readyForNext.clear();
           startNewRound(room.gameState);
+          autoSelectIfLastCard(io, room);
+          if (room.gameState.phase === 'selecting') {
+            botSelectCards(io, room);
+          }
           broadcastGameState(io, room);
           io.to(room.id).emit('game:new_round', room.gameState.round);
         }

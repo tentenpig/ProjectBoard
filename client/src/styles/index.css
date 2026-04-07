@@ -681,6 +681,31 @@ button {
   border-color: var(--accent-soft);
 }
 
+.player-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.player-list-header h3 {
+  margin-bottom: 0;
+}
+
+.bot-badge {
+  font-size: 10px;
+  background: var(--text-muted);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+.player-item.bot {
+  border: 1px dashed var(--border);
+}
+
 .host-badge {
   font-size: 11px;
   background: var(--accent);

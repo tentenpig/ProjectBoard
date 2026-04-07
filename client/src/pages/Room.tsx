@@ -11,6 +11,7 @@ interface RoomState {
   gameType: string;
   maxPlayers: number;
   players: { id: number; nickname: string }[];
+  botIds: number[];
   status: string;
 }
 
@@ -94,11 +95,22 @@ export default function Room() {
             )}
 
             <div className="player-list">
-              <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
+              <div className="player-list-header">
+                <h3>참가자 ({roomState.players.length}/{roomState.maxPlayers})</h3>
+                {isHost && roomState.gameType === 'six-nimmt' && roomState.players.length < roomState.maxPlayers && (
+                  <button onClick={() => socket!.emit('room:add_bot')} className="btn-secondary btn-small">+ 봇 추가</button>
+                )}
+              </div>
               {roomState.players.map((p) => (
-                <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''}`}>
-                  <span className="player-name">{p.nickname}</span>
+                <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''} ${(roomState.botIds || []).includes(p.id) ? 'bot' : ''}`}>
+                  <span className="player-name">
+                    {(roomState.botIds || []).includes(p.id) && <span className="bot-badge">BOT</span>}
+                    {p.nickname}
+                  </span>
                   {p.id === roomState.hostId && <span className="host-badge">방장</span>}
+                  {isHost && (roomState.botIds || []).includes(p.id) && (
+                    <button onClick={() => socket!.emit('room:remove_bot', p.id)} className="btn-secondary btn-small">제거</button>
+                  )}
                 </div>
               ))}
             </div>
