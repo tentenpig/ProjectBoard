@@ -487,8 +487,10 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
     socket.leave(roomId);
     socket.join('lobby');
 
-    if (room.players.length === 0) {
-      // Also kick spectators
+    // Check if only bots remain (no real players)
+    const humanPlayers = room.players.filter((p) => !room.botIds.has(p.id));
+    if (humanPlayers.length === 0) {
+      // Kick spectators
       for (const spec of room.spectators) {
         const s = userSockets.get(spec.id);
         if (s) { s.leave(roomId); s.join('lobby'); }
@@ -498,9 +500,9 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
       return;
     }
 
-    // Transfer host
+    // Transfer host to a human player
     if (room.hostId === user.id) {
-      room.hostId = room.players[0].id;
+      room.hostId = humanPlayers[0].id;
     }
 
     // If game is in progress, abort it
