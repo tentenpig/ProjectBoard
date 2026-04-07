@@ -100,6 +100,7 @@ export default function Lobby() {
   const gameTypeLabel: Record<string, string> = {
     'six-nimmt': '젝스님트',
     'davinci-code': '다빈치 코드',
+    'gomoku': '오목',
   };
 
   return (
@@ -172,17 +173,18 @@ export default function Lobby() {
                   <select value={gameType} onChange={(e) => {
                     const gt = e.target.value;
                     setGameType(gt);
-                    const max = gt === 'davinci-code' ? 4 : 10;
+                    const max = gt === 'gomoku' ? 2 : gt === 'davinci-code' ? 4 : 10;
                     if (maxPlayers > max) setMaxPlayers(max);
                   }}>
                     <option value="six-nimmt">젝스님트 (6 Nimmt!)</option>
                     <option value="davinci-code">다빈치 코드 (Da Vinci Code)</option>
+                    <option value="gomoku">오목 (Gomoku)</option>
                   </select>
                 </div>
                 <div className="form-group">
                   <label>최대 인원</label>
                   <select value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
-                    {Array.from({ length: (gameType === 'davinci-code' ? 4 : 10) - 1 }, (_, i) => i + 2).map((n) => (
+                    {Array.from({ length: (gameType === 'gomoku' ? 2 : gameType === 'davinci-code' ? 4 : 10) - 1 }, (_, i) => i + 2).map((n) => (
                       <option key={n} value={n}>{n}명</option>
                     ))}
                   </select>

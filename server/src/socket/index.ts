@@ -31,6 +31,15 @@ import {
   getPlayerView as getDaVinciPlayerView,
   getSpectatorView as getDaVinciSpectatorView,
 } from '../games/davinciCode/logic';
+import {
+  GomokuState,
+  initGame as initGomoku,
+  placeStone,
+  timeoutLoss,
+  resign as gomokuResign,
+  getPlayerView as getGomokuPlayerView,
+  getSpectatorView as getGomokuSpectatorView,
+} from '../games/gomoku/logic';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -51,6 +60,9 @@ interface Room {
   replacementBotIds: Set<number>;  // bots that replaced real players (count as human for EXP)
   gameState: GameState | null;
   davinciState: DaVinciState | null;
+  gomokuState: GomokuState | null;
+  gomokuTimer: ReturnType<typeof setInterval> | null;
+  gomokuSettings: { totalTime: number; moveTime: number; colorChoice: string };
   status: 'waiting' | 'playing';
   readyForNext: Set<number>;
 }
@@ -101,6 +113,90 @@ async function grantExp(io: Server, room: Room, rewards: { playerId: number; exp
   }
 }
 
+function gomokuBotMove(io: Server, room: Room) {
+  if (!room.gomokuState || room.gomokuState.phase !== 'playing') return;
+  const currentPlayer = room.gomokuState.players.find((p) => p.color === room.gomokuState!.currentColor);
+  if (!currentPlayer || !room.botIds.has(currentPlayer.id)) return;
+
+  const state = room.gomokuState;
+  const board = state.board;
+  const myColor = state.currentColor;
+  const oppColor = myColor === 'black' ? 'white' : 'black';
+
+  // Score each empty cell
+  let bestScore = -1;
+  let bestMove = { row: 7, col: 7 };
+
+  const countDir = (r: number, c: number, dr: number, dc: number, color: string): number => {
+    let count = 0;
+    for (let i = 1; i < 5; i++) {
+      const nr = r + dr * i, nc = c + dc * i;
+      if (nr < 0 || nr >= 15 || nc < 0 || nc >= 15 || board[nr][nc] !== color) break;
+      count++;
+    }
+    return count;
+  };
+
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 15; c++) {
+      if (board[r][c] !== null) continue;
+      let score = 0;
+      const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+      for (const [dr, dc] of dirs) {
+        const myFwd = countDir(r, c, dr, dc, myColor);
+        const myBwd = countDir(r, c, -dr, -dc, myColor);
+        const myLine = myFwd + myBwd;
+        const oppFwd = countDir(r, c, dr, dc, oppColor);
+        const oppBwd = countDir(r, c, -dr, -dc, oppColor);
+        const oppLine = oppFwd + oppBwd;
+
+        if (myLine >= 4) score += 100000;      // Win
+        else if (oppLine >= 4) score += 50000;  // Block win
+        else if (myLine >= 3) score += 5000;
+        else if (oppLine >= 3) score += 3000;
+        else if (myLine >= 2) score += 500;
+        else if (oppLine >= 2) score += 300;
+        else score += myLine * 10 + oppLine * 8;
+      }
+      // Prefer center
+      score += Math.max(0, 7 - Math.abs(r - 7) - Math.abs(c - 7));
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = { row: r, col: c };
+      }
+    }
+  }
+
+  setTimeout(() => {
+    if (!room.gomokuState || room.gomokuState.phase !== 'playing') return;
+    placeStone(room.gomokuState, currentPlayer.id, bestMove.row, bestMove.col);
+    broadcastGameState(io, room);
+    if (room.gomokuState.phase === 'game_over') {
+      if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+      grantGomokuExp(io, room);
+    } else {
+      gomokuBotMove(io, room);
+    }
+  }, 500 + Math.random() * 1000);
+}
+
+function grantGomokuExp(io: Server, room: Room) {
+  if (!room.gomokuState || room.gomokuState.phase !== 'game_over') return;
+  const humanCount = countEffectiveHumans(room);
+  const participate = calcReward('gomoku', 'participate', humanCount);
+  const winBonus = calcReward('gomoku', 'win', humanCount);
+  if (participate <= 0 && winBonus <= 0) return;
+  const rewards = room.gomokuState.players
+    .filter((p) => !room.botIds.has(p.id))
+    .map((p) => ({
+      playerId: p.id,
+      exp: participate + (p.id === room.gomokuState!.winnerId ? winBonus : 0),
+      reason: p.id === room.gomokuState!.winnerId ? '오목 승리' : '오목 참가',
+    }));
+  grantExp(io, room, rewards);
+}
+
 function broadcastRoomList(io: Server) {
   const roomList = Array.from(rooms.values()).map((r) => ({
     id: r.id,
@@ -127,10 +223,27 @@ function broadcastRoomState(io: Server, room: Room) {
     spectators: room.spectators.map((s) => ({ id: s.id, nickname: s.nickname })),
     botIds: Array.from(room.botIds),
     status: room.status,
+    gomokuSettings: room.gomokuSettings,
   });
 }
 
 function broadcastGameState(io: Server, room: Room) {
+  if (room.gomokuState) {
+    for (const player of room.players) {
+      const socket = userSockets.get(player.id);
+      if (socket) {
+        socket.emit('game:state', { gameType: 'gomoku', ...getGomokuPlayerView(room.gomokuState, player.id) });
+      }
+    }
+    for (const spec of room.spectators) {
+      const socket = userSockets.get(spec.id);
+      if (socket) {
+        socket.emit('game:state', { gameType: 'gomoku', ...getGomokuSpectatorView(room.gomokuState) });
+      }
+    }
+    return;
+  }
+
   if (room.davinciState) {
     for (const player of room.players) {
       const socket = userSockets.get(player.id);
@@ -530,7 +643,7 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
     }
 
     // If game is in progress, replace with bot
-    if (room.gameState || room.davinciState) {
+    if (room.gameState || room.davinciState || room.gomokuState) {
       const bot = createBot();
       bot.nickname = `BOT (${user.nickname})`;
       room.players.push(bot);
@@ -603,6 +716,23 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
         }
       }
 
+      if (room.gomokuState) {
+        const gp = room.gomokuState.players.find((p) => p.id === user.id);
+        if (gp) {
+          gp.id = bot.id;
+          gp.nickname = bot.nickname;
+        }
+        // If it's their turn, bot resigns
+        if (room.gomokuState.phase === 'playing') {
+          const currentPlayer = room.gomokuState.players.find((p) => p.color === room.gomokuState!.currentColor);
+          if (currentPlayer && currentPlayer.id === bot.id) {
+            gomokuResign(room.gomokuState, bot.id);
+            if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+            grantGomokuExp(io, room);
+          }
+        }
+      }
+
       io.to(roomId).emit('game:player_replaced', { nickname: user.nickname, botNickname: bot.nickname });
       broadcastGameState(io, room);
     }
@@ -671,12 +801,15 @@ export function setupSocket(io: Server) {
         name,
         hostId: user.id,
         gameType,
-        maxPlayers: Math.min(Math.max(maxPlayers, 2), gameType === 'davinci-code' ? 4 : 10),
+        maxPlayers: Math.min(Math.max(maxPlayers, 2), gameType === 'gomoku' ? 2 : gameType === 'davinci-code' ? 4 : 10),
         players: [user],
         spectators: [],
         botIds: new Set(),
         replacementBotIds: new Set(),
         gameState: null,
+        gomokuState: null,
+        gomokuTimer: null,
+        gomokuSettings: { totalTime: 300000, moveTime: 30000, colorChoice: 'random' },
         davinciState: null,
         status: 'waiting',
         readyForNext: new Set(),
@@ -761,6 +894,15 @@ export function setupSocket(io: Server) {
           socket.emit('game:state', { gameType: 'davinci-code', ...getDaVinciPlayerView(room.davinciState, user.id) });
         }
       }
+
+      if (room.gomokuState) {
+        const isSpectator = room.spectators.find((s) => s.id === user.id);
+        if (isSpectator) {
+          socket.emit('game:state', { gameType: 'gomoku', ...getGomokuSpectatorView(room.gomokuState) });
+        } else {
+          socket.emit('game:state', { gameType: 'gomoku', ...getGomokuPlayerView(room.gomokuState, user.id) });
+        }
+      }
     });
 
     // Add bot (host only)
@@ -829,7 +971,31 @@ export function setupSocket(io: Server) {
           room.status = 'playing';
           const playerInfos = room.players.map((p) => ({ id: p.id, nickname: p.nickname }));
 
-          if (room.gameType === 'davinci-code') {
+          if (room.gameType === 'gomoku') {
+            const gs = room.gomokuSettings;
+            room.gomokuState = initGomoku(playerInfos, gs.colorChoice as any, gs.totalTime, gs.moveTime);
+
+            // Start timer
+            room.gomokuTimer = setInterval(() => {
+              if (!room.gomokuState || room.gomokuState.phase !== 'playing') {
+                if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+                return;
+              }
+              const elapsed = Date.now() - room.gomokuState.turnStartedAt;
+              const cp = room.gomokuState.players.find((p) => p.color === room.gomokuState!.currentColor)!;
+              if (cp.moveTime - elapsed <= 0) {
+                timeoutLoss(room.gomokuState, 'timeout_move');
+                if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+                broadcastGameState(io, room);
+                grantGomokuExp(io, room);
+              } else if (cp.totalTime - elapsed <= 0) {
+                timeoutLoss(room.gomokuState, 'timeout_total');
+                if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+                broadcastGameState(io, room);
+                grantGomokuExp(io, room);
+              }
+            }, 500);
+          } else if (room.gameType === 'davinci-code') {
             room.davinciState = initDaVinci(playerInfos);
 
             // Bots auto-place jokers
@@ -862,6 +1028,11 @@ export function setupSocket(io: Server) {
           broadcastRoomList(io);
           broadcastGameState(io, room);
           io.to(room.id).emit('game:started');
+
+          // Gomoku bot first move
+          if (room.gomokuState) {
+            gomokuBotMove(io, room);
+          }
 
           // Bots auto-select after short delay
           if (room.gameState && room.botIds.size > 0) {
@@ -1076,15 +1247,60 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // ===== Gomoku events =====
+    socket.on('gomoku:place', ({ row, col }: { row: number; col: number }) => {
+      for (const [, room] of rooms) {
+        if (room.gomokuState && room.players.find((p) => p.id === user.id)) {
+          if (placeStone(room.gomokuState, user.id, row, col)) {
+            broadcastGameState(io, room);
+            if (room.gomokuState.phase === 'game_over') {
+              if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+              grantGomokuExp(io, room);
+            } else {
+              gomokuBotMove(io, room);
+            }
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('gomoku:resign', () => {
+      for (const [, room] of rooms) {
+        if (room.gomokuState && room.players.find((p) => p.id === user.id)) {
+          if (gomokuResign(room.gomokuState, user.id)) {
+            if (room.gomokuTimer) clearInterval(room.gomokuTimer);
+            broadcastGameState(io, room);
+            grantGomokuExp(io, room);
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('gomoku:update_settings', (settings: { totalTime?: number; moveTime?: number; colorChoice?: string }) => {
+      for (const [, room] of rooms) {
+        if (room.hostId !== user.id || room.status !== 'waiting' || room.gameType !== 'gomoku') continue;
+        if (settings.totalTime !== undefined) room.gomokuSettings.totalTime = settings.totalTime;
+        if (settings.moveTime !== undefined) room.gomokuSettings.moveTime = settings.moveTime;
+        if (settings.colorChoice !== undefined) room.gomokuSettings.colorChoice = settings.colorChoice;
+        broadcastRoomState(io, room);
+        break;
+      }
+    });
+
     // Return to lobby
     socket.on('game:return_lobby', () => {
       for (const [roomId, room] of rooms) {
         if (room.hostId !== user.id) continue;
         const sixNimmtDone = room.gameState && (room.gameState.phase === 'game_over' || room.gameState.phase === 'round_end');
         const davinciDone = room.davinciState && room.davinciState.phase === 'game_over';
-        if (sixNimmtDone || davinciDone) {
+        const gomokuDone = room.gomokuState && room.gomokuState.phase === 'game_over';
+        if (sixNimmtDone || davinciDone || gomokuDone) {
           room.gameState = null;
           room.davinciState = null;
+          room.gomokuState = null;
+          if (room.gomokuTimer) { clearInterval(room.gomokuTimer); room.gomokuTimer = null; }
           room.status = 'waiting';
 
           for (const player of room.players) {

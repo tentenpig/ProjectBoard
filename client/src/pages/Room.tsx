@@ -13,6 +13,7 @@ interface RoomState {
   players: { id: number; nickname: string }[];
   botIds: number[];
   status: string;
+  gomokuSettings?: { totalTime: number; moveTime: number; colorChoice: string };
 }
 
 export default function Room() {
@@ -88,10 +89,14 @@ export default function Room() {
                 name={roomState.name}
                 maxPlayers={roomState.maxPlayers}
                 minPlayers={Math.max(roomState.players.length, 2)}
-                maxLimit={roomState.gameType === 'davinci-code' ? 4 : 10}
+                maxLimit={roomState.gameType === 'gomoku' ? 2 : roomState.gameType === 'davinci-code' ? 4 : 10}
                 currentPlayers={roomState.players.length}
                 socket={socket!}
               />
+            )}
+
+            {isHost && roomState.gameType === 'gomoku' && roomState.gomokuSettings && (
+              <GomokuSettings settings={roomState.gomokuSettings} socket={socket!} />
             )}
 
             <div className="player-list">
@@ -190,6 +195,51 @@ function RoomSettings({ name, maxPlayers, minPlayers, maxLimit, currentPlayers, 
       <div className="modal-actions">
         <button onClick={() => { setShowSettings(false); setEditName(name); setEditMax(maxPlayers); }} className="btn-secondary">취소</button>
         <button onClick={save} className="btn-primary">저장</button>
+      </div>
+    </div>
+  );
+}
+
+function GomokuSettings({ settings, socket }: {
+  settings: { totalTime: number; moveTime: number; colorChoice: string };
+  socket: import('socket.io-client').Socket;
+}) {
+  const update = (key: string, value: any) => {
+    socket.emit('gomoku:update_settings', { [key]: value });
+  };
+
+  return (
+    <div className="room-settings" style={{ marginBottom: 12 }}>
+      <h3>오목 설정</h3>
+      <div className="form-group">
+        <label>총 게임 시간</label>
+        <select value={settings.totalTime} onChange={(e) => update('totalTime', Number(e.target.value))}>
+          <option value={60000}>1분</option>
+          <option value={180000}>3분</option>
+          <option value={300000}>5분</option>
+          <option value={600000}>10분</option>
+          <option value={900000}>15분</option>
+          <option value={1800000}>30분</option>
+        </select>
+      </div>
+      <div className="form-group">
+        <label>착수 시간 제한</label>
+        <select value={settings.moveTime} onChange={(e) => update('moveTime', Number(e.target.value))}>
+          <option value={10000}>10초</option>
+          <option value={15000}>15초</option>
+          <option value={30000}>30초</option>
+          <option value={60000}>1분</option>
+          <option value={120000}>2분</option>
+          <option value={0}>무제한</option>
+        </select>
+      </div>
+      <div className="form-group">
+        <label>흑/백 선택</label>
+        <select value={settings.colorChoice} onChange={(e) => update('colorChoice', e.target.value)}>
+          <option value="random">랜덤</option>
+          <option value="host-black">방장이 흑 (선공)</option>
+          <option value="host-white">방장이 백 (후공)</option>
+        </select>
       </div>
     </div>
   );

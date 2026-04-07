@@ -25,6 +25,16 @@
         "base": 0,
         "perPlayer": 20
       }
+    },
+    "gomoku": {
+      "participate": {
+        "base": 0,
+        "perPlayer": 10
+      },
+      "win": {
+        "base": 0,
+        "perPlayer": 20
+      }
     }
   }
 }

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import ChatPanel from '../components/ChatPanel';
 import DaVinciGame from '../components/DaVinciGame';
+import GomokuGame from '../components/GomokuGame';
 
 interface Card {
   number: number;
@@ -235,6 +236,10 @@ export default function Game() {
 
   if (gameState.gameType === 'davinci-code') {
     return <DaVinciGame socket={socket!} gameState={gameState as any} />;
+  }
+
+  if (gameState.gameType === 'gomoku') {
+    return <GomokuGame socket={socket!} gameState={gameState as any} />;
   }
 
   const isSpectating = gameState.spectating === true;
