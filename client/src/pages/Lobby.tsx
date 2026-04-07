@@ -21,6 +21,7 @@ export default function Lobby() {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [showOnlineList, setShowOnlineList] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showExpPopup, setShowExpPopup] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [gameType, setGameType] = useState('six-nimmt');
   const [maxPlayers, setMaxPlayers] = useState(4);
@@ -117,7 +118,23 @@ export default function Lobby() {
               <select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value as any)}>
                 {themes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
-              <span className="user-level">Lv.{user?.level || 1}</span>
+              <span className="user-level" onClick={() => setShowExpPopup(!showExpPopup)}>
+                Lv.{user?.level || 1}
+                {showExpPopup && (
+                  <div className="exp-popup" onClick={(e) => e.stopPropagation()}>
+                    <div className="exp-popup-title">Lv.{user?.level || 1} {user?.nickname}</div>
+                    <div className="exp-popup-row">
+                      <span>현재 EXP</span>
+                      <span>{user?.currentExp || 0} / {user?.nextLevelExp || 100}</span>
+                    </div>
+                    <div className="exp-bar">
+                      <div className="exp-bar-fill" style={{ width: `${user?.nextLevelExp ? Math.floor((user.currentExp / user.nextLevelExp) * 100) : 0}%` }} />
+                    </div>
+                    <div className="exp-popup-percent">{user?.nextLevelExp ? Math.floor((user.currentExp / user.nextLevelExp) * 100) : 0}%</div>
+                    <div className="exp-popup-total">총 누적 EXP: {user?.exp || 0}</div>
+                  </div>
+                )}
+              </span>
               <span>{user?.nickname}</span>
               <button onClick={logout} className="btn-secondary">로그아웃</button>
             </div>
