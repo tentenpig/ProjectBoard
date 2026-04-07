@@ -3,6 +3,7 @@
     "maxLevel": 99,
     "expMultiplier": 50
   },
+  "dailyLoginExp": 50,
   "exp": {
     "minHumanPlayers": 2,
     "six-nimmt": {

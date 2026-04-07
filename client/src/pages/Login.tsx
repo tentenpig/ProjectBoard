@@ -8,14 +8,12 @@ export default function Login() {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setInfo('');
 
     if (!nickname.trim() || !password) return;
 
@@ -28,6 +26,14 @@ export default function Login() {
 
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
+
+      // Store daily reward info for lobby to show
+      if (data.dailyReward > 0) {
+        sessionStorage.setItem('dailyReward', JSON.stringify({
+          exp: data.dailyReward,
+          created: data.created,
+        }));
+      }
 
       login(data.token, data.user);
       navigate('/lobby');
@@ -57,7 +63,6 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
           />
           {error && <p className="error">{error}</p>}
-          {info && <p className="success">{info}</p>}
           <button type="submit" className="btn-primary">입장</button>
         </form>
         <p className="auth-hint">처음 사용하는 닉네임은 자동으로 계정이 생성됩니다.</p>

@@ -22,6 +22,14 @@ export default function Lobby() {
   const [showOnlineList, setShowOnlineList] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showExpPopup, setShowExpPopup] = useState(false);
+  const [rewardPopup, setRewardPopup] = useState<{ exp: number; created: boolean } | null>(() => {
+    const saved = sessionStorage.getItem('dailyReward');
+    if (saved) {
+      sessionStorage.removeItem('dailyReward');
+      return JSON.parse(saved);
+    }
+    return null;
+  });
   const [roomName, setRoomName] = useState('');
   const [gameType, setGameType] = useState('six-nimmt');
   const [maxPlayers, setMaxPlayers] = useState(4);
@@ -212,6 +220,21 @@ export default function Lobby() {
         </div>
       </div>
       <ChatPanel channel="lobby" />
+
+      {rewardPopup && (
+        <div className="modal-overlay">
+          <div className="modal reward-popup">
+            <h2>{rewardPopup.created ? '가입을 환영합니다!' : '오늘의 첫 로그인!'}</h2>
+            <div className="reward-exp">+{rewardPopup.exp} EXP</div>
+            <p className="reward-desc">
+              {rewardPopup.created
+                ? '가입 보상으로 경험치가 지급되었습니다.'
+                : '일일 로그인 보상이 지급되었습니다.'}
+            </p>
+            <button onClick={() => setRewardPopup(null)} className="btn-primary">확인</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

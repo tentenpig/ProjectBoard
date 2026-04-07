@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS users (
     nickname VARCHAR(20) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     exp INT NOT NULL DEFAULT 0,
+    last_login_reward DATE DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

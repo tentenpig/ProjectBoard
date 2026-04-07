@@ -5,6 +5,7 @@ import pool from '../config/database';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { onlineNicknames } from '../socket/index';
 import { calculateLevel } from '../config/level';
+import balance from '../config/balance.json';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -27,7 +28,7 @@ router.post('/enter', async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nickname, password_hash, exp FROM users WHERE nickname = ?',
+      'SELECT id, nickname, password_hash, exp, last_login_reward FROM users WHERE nickname = ?',
       [trimmed]
     );
 
@@ -42,22 +43,35 @@ router.post('/enter', async (req: Request, res: Response) => {
         return res.status(409).json({ error: '이미 접속 중인 계정입니다.' });
       }
 
-      const levelInfo = calculateLevel(user.exp);
+      // Daily login reward
+      let exp = user.exp;
+      const today = new Date().toISOString().slice(0, 10);
+      const lastReward = user.last_login_reward ? new Date(user.last_login_reward).toISOString().slice(0, 10) : null;
+      let dailyReward = 0;
+      if (lastReward !== today && balance.dailyLoginExp > 0) {
+        dailyReward = balance.dailyLoginExp;
+        exp += dailyReward;
+        await pool.query('UPDATE users SET exp = ?, last_login_reward = CURDATE() WHERE id = ?', [exp, user.id]);
+      }
+
+      const levelInfo = calculateLevel(exp);
       const token = jwt.sign({ id: user.id, nickname: user.nickname }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ token, user: { id: user.id, nickname: user.nickname, exp: user.exp, ...levelInfo }, created: false });
+      return res.json({ token, user: { id: user.id, nickname: user.nickname, exp, ...levelInfo }, created: false, dailyReward });
     }
 
     // New account: create and login
+    const dailyReward = balance.dailyLoginExp;
+    const initialExp = dailyReward;
     const passwordHash = await bcrypt.hash(password, 10);
     const [result] = await pool.query<ResultSetHeader>(
-      'INSERT INTO users (nickname, password_hash) VALUES (?, ?)',
-      [trimmed, passwordHash]
+      'INSERT INTO users (nickname, password_hash, exp, last_login_reward) VALUES (?, ?, ?, CURDATE())',
+      [trimmed, passwordHash, initialExp]
     );
 
     const newUser = { id: result.insertId, nickname: trimmed };
-    const levelInfo = calculateLevel(0);
+    const levelInfo = calculateLevel(initialExp);
     const token = jwt.sign(newUser, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: { ...newUser, exp: 0, ...levelInfo }, created: true });
+    res.json({ token, user: { ...newUser, exp: initialExp, ...levelInfo }, created: true, dailyReward });
   } catch (err) {
     console.error('Enter error:', err);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
