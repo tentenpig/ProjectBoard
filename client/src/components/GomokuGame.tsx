@@ -67,6 +67,12 @@ export default function GomokuGame({ socket, gameState }: Props) {
     resultSnapshot.current = { ...gameState };
   }
 
+  // Track when we received the last game state for local timer countdown
+  const stateReceivedAt = useRef(Date.now());
+  useEffect(() => {
+    stateReceivedAt.current = Date.now();
+  }, [gameState.currentColor, gameState.moveCount]);
+
   // Tick every 100ms for timer display
   useEffect(() => {
     if (gameState.phase !== 'playing') return;
@@ -132,16 +138,22 @@ export default function GomokuGame({ socket, gameState }: Props) {
 
           {/* Player timers */}
           <div className="gomoku-timers">
-            {[blackPlayer, whitePlayer].map((p) => (
-              <div key={p.id} className={`gomoku-timer ${p.color === gameState.currentColor && gameState.phase === 'playing' ? 'timer-active' : ''} ${p.color}`}>
-                <span className="timer-stone">{p.color === 'black' ? '●' : '○'}</span>
-                <span className="timer-name">{p.nickname}</span>
-                <span className="timer-total">{formatTime(p.totalTime)}</span>
-                {p.color === gameState.currentColor && gameState.phase === 'playing' && (
-                  <span className={`timer-move ${p.moveTime < 10000 ? 'timer-urgent' : ''}`}>{formatTime(p.moveTime)}</span>
-                )}
-              </div>
-            ))}
+            {[blackPlayer, whitePlayer].map((p) => {
+              const isActive = p.color === gameState.currentColor && gameState.phase === 'playing';
+              const localElapsed = isActive ? Date.now() - stateReceivedAt.current : 0;
+              const displayTotal = isActive ? Math.max(0, p.totalTime - localElapsed) : p.totalTime;
+              const displayMove = isActive ? Math.max(0, p.moveTime - localElapsed) : p.moveTime;
+              return (
+                <div key={p.id} className={`gomoku-timer ${isActive ? 'timer-active' : ''} ${p.color}`}>
+                  <span className="timer-stone">{p.color === 'black' ? '●' : '○'}</span>
+                  <span className="timer-name">{p.nickname}</span>
+                  <span className="timer-total">{formatTime(displayTotal)}</span>
+                  {isActive && (
+                    <span className={`timer-move ${displayMove < 10000 ? 'timer-urgent' : ''}`}>{formatTime(displayMove)}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Board */}
