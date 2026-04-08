@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Socket } from 'socket.io-client';
 import ChatPanel from './ChatPanel';
+import ExpGainedBadge from './ExpGainedBadge';
+import { useExpGained } from '../hooks/useExpGained';
 
 interface TileView {
   id: number;
@@ -57,6 +59,7 @@ export default function DaVinciGame({ socket, gameState }: Props) {
     correct: boolean;
   } | null>(null);
 
+  const expGained = useExpGained(socket);
   const isMyTurn = gameState.currentPlayerId === user?.id;
   const isSpectating = gameState.spectating === true;
   const myPlayer = gameState.players.find((p) => p.id === user?.id);
@@ -336,6 +339,7 @@ export default function DaVinciGame({ socket, gameState }: Props) {
                   <button onClick={leaveGame} className="btn-secondary">나가기</button>
                   {isHost && <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>}
                 </div>
+                <ExpGainedBadge data={expGained} />
               </div>
             </div>
           )}

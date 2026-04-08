@@ -8,6 +8,8 @@ import GomokuGame from '../components/GomokuGame';
 import DalmutiGame from '../components/DalmutiGame';
 import FlickGame from '../components/FlickGame';
 import GameRules from '../components/GameRules';
+import ExpGainedBadge from '../components/ExpGainedBadge';
+import { useExpGained } from '../hooks/useExpGained';
 
 interface Card {
   number: number;
@@ -252,6 +254,7 @@ export default function Game() {
     return <FlickGame socket={socket!} gameState={gameState as any} />;
   }
 
+  const expGained = useExpGained(socket);
   const isSpectating = gameState.spectating === true;
   const isMyTurnToChoose = !isSpectating && gameState.phase === 'choosing_row' && gameState.choosingPlayerId === user?.id;
   const myPlayer = isSpectating ? null : gameState.players.find((p) => p.id === user?.id);
@@ -505,6 +508,7 @@ export default function Game() {
                 </button>
               )}
             </div>
+            <ExpGainedBadge data={expGained} />
             {readyStatus && !roundResult.gameOver && (
               <div className="ready-status">
                 <p>{readyStatus.ready.length}/{readyStatus.total}명 준비 완료</p>

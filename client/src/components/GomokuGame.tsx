@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Socket } from 'socket.io-client';
 import ChatPanel from './ChatPanel';
+import ExpGainedBadge from './ExpGainedBadge';
+import { useExpGained } from '../hooks/useExpGained';
 
 interface GomokuPlayerView {
   id: number;
@@ -56,6 +58,7 @@ export default function GomokuGame({ socket, gameState }: Props) {
     return () => { socket.off('game:player_replaced', handleReplaced); };
   }, [socket]);
 
+  const expGained = useExpGained(socket);
   const isSpectating = gameState.spectating === true;
   const isMyTurn = !isSpectating && gameState.myColor === gameState.currentColor && gameState.phase === 'playing';
   const isHost = gameState.players[0]?.id === user?.id;
@@ -185,6 +188,7 @@ export default function GomokuGame({ socket, gameState }: Props) {
                   <button onClick={leaveGame} className="btn-secondary">나가기</button>
                   {isHost && <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>}
                 </div>
+                <ExpGainedBadge data={expGained} />
               </div>
             </div>
           )}

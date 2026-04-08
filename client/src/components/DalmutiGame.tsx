@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Socket } from 'socket.io-client';
 import ChatPanel from './ChatPanel';
+import ExpGainedBadge from './ExpGainedBadge';
+import { useExpGained } from '../hooks/useExpGained';
 
 const RANK_NAMES: Record<number, string> = {
   1: '달무티', 2: '대주교', 3: '원수', 4: '남작부인',
@@ -58,6 +60,7 @@ export default function DalmutiGame({ socket, gameState }: Props) {
   const [readyStatus, setReadyStatus] = useState<{ ready: number[]; total: number } | null>(null);
   const [replaceToast, setReplaceToast] = useState<string | null>(null);
 
+  const expGained = useExpGained(socket);
   const isSpectating = gameState.spectating === true;
   const isMyTurn = gameState.currentPlayerId === user?.id && gameState.phase === 'playing';
   const myPlayer = gameState.players.find((p) => p.id === user?.id);
@@ -255,6 +258,7 @@ export default function DalmutiGame({ socket, gameState }: Props) {
                     <p>{readyStatus.ready.length}/{readyStatus.total}명 준비 완료</p>
                   </div>
                 )}
+                <ExpGainedBadge data={expGained} />
               </div>
             </div>
           )}
@@ -282,6 +286,7 @@ export default function DalmutiGame({ socket, gameState }: Props) {
                   <button onClick={leaveGame} className="btn-secondary">나가기</button>
                   {isHost && <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>}
                 </div>
+                <ExpGainedBadge data={expGained} />
               </div>
             </div>
           )}
