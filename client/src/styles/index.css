@@ -473,6 +473,60 @@ body {
   min-width: 300px;
 }
 
+/* Game Rules Modal */
+.rules-btn {
+  white-space: nowrap;
+}
+
+.rules-modal {
+  max-width: 560px;
+  width: calc(100vw - 32px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.rules-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.rules-header h2 {
+  font-size: 18px;
+}
+
+.rules-content {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.rules-section {
+  margin-bottom: 16px;
+}
+
+.rules-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.rules-section p {
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-line;
+  color: var(--text);
+}
+
+.header-left {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .reward-popup h2 {
   margin-bottom: 16px;
 }
@@ -966,6 +1020,42 @@ button {
 
 .player-item.host {
   border-color: var(--accent-soft);
+}
+
+.team-columns {
+  display: flex;
+  gap: 8px;
+}
+
+.team-column {
+  flex: 1;
+  border: 1.5px solid var(--border-light);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.team-column.team-0 {
+  border-color: #c0392b;
+}
+
+.team-column.team-1 {
+  border-color: #2980b9;
+}
+
+.team-column-header {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.team-0 .team-column-header { color: #c0392b; }
+.team-1 .team-column-header { color: #2980b9; }
+
+.player-item-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .player-list-header {
@@ -2869,5 +2959,84 @@ button {
     min-width: 100px;
     padding: 4px 8px;
     font-size: 12px;
+  }
+}
+
+/* ========== Flick (알까기) ========== */
+.flick-score {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.flick-teams {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.flick-team {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1.5px solid;
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flick-team-name {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.flick-player {
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+}
+
+.flick-player.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.flick-player.disconnected {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.flick-board-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.flick-canvas {
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  cursor: default;
+  touch-action: none;
+}
+
+@media (max-width: 768px) {
+  .flick-canvas {
+    max-width: 100%;
+  }
+
+  .flick-teams {
+    flex-direction: column;
+    gap: 4px;
   }
 }

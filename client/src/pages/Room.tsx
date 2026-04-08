@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import ChatPanel from '../components/ChatPanel';
+import GameRules from '../components/GameRules';
 
 interface RoomState {
   id: string;
@@ -14,6 +15,7 @@ interface RoomState {
   botIds: number[];
   status: string;
   gomokuSettings?: { totalTime: number; moveTime: number; colorChoice: string };
+  teams?: Record<number, 0 | 1>;
 }
 
 export default function Room() {
@@ -80,7 +82,8 @@ export default function Room() {
           <header className="room-header">
             <button onClick={leaveRoom} className="btn-secondary">← 나가기</button>
             <h2>{roomState.name}</h2>
-            <span className="game-badge">{{ 'six-nimmt': '젝스님트', 'davinci-code': '다빈치 코드' }[roomState.gameType] || roomState.gameType}</span>
+            <span className="game-badge">{{ 'six-nimmt': '젝스님트', 'davinci-code': '다빈치 코드', 'gomoku': '오목', 'dalmuti': '달무티' }[roomState.gameType] || roomState.gameType}</span>
+            <GameRules gameType={roomState.gameType} />
           </header>
 
           <div className="room-content">
@@ -106,18 +109,51 @@ export default function Room() {
                   <button onClick={() => socket!.emit('room:add_bot')} className="btn-secondary btn-small">+ 봇 추가</button>
                 )}
               </div>
-              {roomState.players.map((p) => (
-                <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''} ${(roomState.botIds || []).includes(p.id) ? 'bot' : ''}`}>
-                  <span className="player-name">
-                    {(roomState.botIds || []).includes(p.id) && <span className="bot-badge">BOT</span>}
-                    {p.nickname}
-                  </span>
-                  {p.id === roomState.hostId && <span className="host-badge">방장</span>}
-                  {isHost && (roomState.botIds || []).includes(p.id) && (
-                    <button onClick={() => socket!.emit('room:remove_bot', p.id)} className="btn-secondary btn-small">제거</button>
-                  )}
+
+              {roomState.gameType === 'flick' && roomState.teams ? (
+                // Team-based player list for flick
+                <div className="team-columns">
+                  {[0, 1].map((team) => {
+                    const teamPlayers = roomState.players.filter((p) => roomState.teams?.[p.id] === team);
+                    return (
+                      <div key={team} className={`team-column team-${team}`}>
+                        <div className="team-column-header">{team === 0 ? 'RED' : 'BLUE'} ({teamPlayers.length})</div>
+                        {teamPlayers.map((p) => (
+                          <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''} ${(roomState.botIds || []).includes(p.id) ? 'bot' : ''}`}>
+                            <span className="player-name">
+                              {(roomState.botIds || []).includes(p.id) && <span className="bot-badge">BOT</span>}
+                              {p.nickname}
+                            </span>
+                            <div className="player-item-actions">
+                              {p.id === roomState.hostId && <span className="host-badge">방장</span>}
+                              {isHost && (
+                                <button onClick={() => socket!.emit('room:switch_team', p.id)} className="btn-secondary btn-small">이동</button>
+                              )}
+                              {isHost && (roomState.botIds || []).includes(p.id) && (
+                                <button onClick={() => socket!.emit('room:remove_bot', p.id)} className="btn-secondary btn-small">제거</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : (
+                // Default player list
+                roomState.players.map((p) => (
+                  <div key={p.id} className={`player-item ${p.id === roomState.hostId ? 'host' : ''} ${(roomState.botIds || []).includes(p.id) ? 'bot' : ''}`}>
+                    <span className="player-name">
+                      {(roomState.botIds || []).includes(p.id) && <span className="bot-badge">BOT</span>}
+                      {p.nickname}
+                    </span>
+                    {p.id === roomState.hostId && <span className="host-badge">방장</span>}
+                    {isHost && (roomState.botIds || []).includes(p.id) && (
+                      <button onClick={() => socket!.emit('room:remove_bot', p.id)} className="btn-secondary btn-small">제거</button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="room-footer">

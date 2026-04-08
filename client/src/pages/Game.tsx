@@ -6,6 +6,8 @@ import ChatPanel from '../components/ChatPanel';
 import DaVinciGame from '../components/DaVinciGame';
 import GomokuGame from '../components/GomokuGame';
 import DalmutiGame from '../components/DalmutiGame';
+import FlickGame from '../components/FlickGame';
+import GameRules from '../components/GameRules';
 
 interface Card {
   number: number;
@@ -246,6 +248,10 @@ export default function Game() {
     return <DalmutiGame socket={socket!} gameState={gameState as any} />;
   }
 
+  if (gameState.gameType === 'flick') {
+    return <FlickGame socket={socket!} gameState={gameState as any} />;
+  }
+
   const isSpectating = gameState.spectating === true;
   const isMyTurnToChoose = !isSpectating && gameState.phase === 'choosing_row' && gameState.choosingPlayerId === user?.id;
   const myPlayer = isSpectating ? null : gameState.players.find((p) => p.id === user?.id);
@@ -282,7 +288,10 @@ export default function Game() {
     <div className="page-main">
     <div className="game-container">
       <header className="game-header">
-        <button onClick={leaveGame} className="btn-secondary btn-small">나가기</button>
+        <div className="header-left">
+          <button onClick={leaveGame} className="btn-secondary btn-small">나가기</button>
+          <GameRules gameType="six-nimmt" />
+        </div>
         <div className="round-info">라운드 {gameState.round}</div>
         <div className="phase-info">
           {gameState.phase === 'selecting' && '카드를 선택하세요'}

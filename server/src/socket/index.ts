@@ -51,6 +51,17 @@ import {
   getSpectatorView as getDalmutiSpectatorView,
 } from '../games/dalmuti/logic';
 
+import {
+  FlickState,
+  initGame as initFlick,
+  flickStone,
+  applySimulation as flickApplySimulation,
+  playerDisconnected as flickPlayerDisconnected,
+  getCurrentPlayerId as flickCurrentPlayer,
+  getPlayerView as getFlickPlayerView,
+  getSpectatorView as getFlickSpectatorView,
+} from '../games/flick/logic';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
 interface UserInfo {
@@ -73,7 +84,9 @@ interface Room {
   gomokuState: GomokuState | null;
   gomokuTimer: ReturnType<typeof setInterval> | null;
   gomokuSettings: { totalTime: number; moveTime: number; colorChoice: string };
+  teams: Map<number, 0 | 1>; // playerId -> team (0 or 1)
   dalmutiState: DalmutiState | null;
+  flickState: FlickState | null;
   status: 'waiting' | 'playing';
   readyForNext: Set<number>;
 }
@@ -281,6 +294,23 @@ function dalmutiBotTurn(io: Server, room: Room) {
   }, 600 + Math.random() * 800);
 }
 
+function grantFlickExp(io: Server, room: Room) {
+  if (!room.flickState || room.flickState.phase !== 'game_over') return;
+  const humanCount = countEffectiveHumans(room);
+  const participate = calcReward('gomoku', 'participate', humanCount);
+  const winBonus = calcReward('gomoku', 'win', humanCount);
+  if (participate <= 0 && winBonus <= 0) return;
+  const wt = room.flickState.winningTeam;
+  const rewards = room.flickState.players
+    .filter((p) => !room.botIds.has(p.id))
+    .map((p) => ({
+      playerId: p.id,
+      exp: participate + (wt !== null && p.team === wt ? winBonus : 0),
+      reason: wt !== null && p.team === wt ? '알까기 승리' : '알까기 참가',
+    }));
+  grantExp(io, room, rewards);
+}
+
 function grantDalmutiExp(io: Server, room: Room) {
   if (!room.dalmutiState || room.dalmutiState.phase !== 'game_over') return;
   const humanCount = countEffectiveHumans(room);
@@ -323,6 +353,13 @@ function grantGomokuExp(io: Server, room: Room) {
   grantExp(io, room, rewards);
 }
 
+function autoAssignTeam(room: Room, playerId: number) {
+  if (room.gameType !== 'flick') return;
+  const team0 = Array.from(room.teams.values()).filter((t) => t === 0).length;
+  const team1 = Array.from(room.teams.values()).filter((t) => t === 1).length;
+  room.teams.set(playerId, team0 <= team1 ? 0 : 1);
+}
+
 function broadcastRoomList(io: Server) {
   const roomList = Array.from(rooms.values()).map((r) => ({
     id: r.id,
@@ -350,10 +387,23 @@ function broadcastRoomState(io: Server, room: Room) {
     botIds: Array.from(room.botIds),
     status: room.status,
     gomokuSettings: room.gomokuSettings,
+    teams: Object.fromEntries(room.teams),
   });
 }
 
 function broadcastGameState(io: Server, room: Room) {
+  if (room.flickState) {
+    for (const player of room.players) {
+      const s = userSockets.get(player.id);
+      if (s) s.emit('game:state', { gameType: 'flick', ...getFlickPlayerView(room.flickState, player.id) });
+    }
+    for (const spec of room.spectators) {
+      const s = userSockets.get(spec.id);
+      if (s) s.emit('game:state', { gameType: 'flick', ...getFlickSpectatorView(room.flickState) });
+    }
+    return;
+  }
+
   if (room.dalmutiState) {
     for (const player of room.players) {
       const s = userSockets.get(player.id);
@@ -780,8 +830,21 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
       room.hostId = humanPlayers[0].id;
     }
 
+    // Flick: just disconnect, no bot replacement
+    if (room.flickState) {
+      flickPlayerDisconnected(room.flickState, user.id);
+      io.to(roomId).emit('game:player_replaced', { nickname: user.nickname, botNickname: '' });
+      broadcastGameState(io, room);
+      if (room.flickState.phase === 'game_over') {
+        grantFlickExp(io, room);
+      }
+      broadcastRoomState(io, room);
+      broadcastRoomList(io);
+      return;
+    }
+
     // If game is in progress, replace with bot
-    if (room.gameState || room.davinciState || room.gomokuState || room.dalmutiState) {
+    if (room.gameState || room.davinciState || room.gomokuState || room.dalmutiState || room.flickState) {
       const bot = createBot();
       bot.nickname = `BOT (${user.nickname})`;
       room.players.push(bot);
@@ -939,7 +1002,7 @@ export function setupSocket(io: Server) {
         name,
         hostId: user.id,
         gameType,
-        maxPlayers: Math.min(Math.max(maxPlayers, gameType === 'dalmuti' ? 4 : 2), gameType === 'gomoku' ? 2 : gameType === 'davinci-code' ? 4 : gameType === 'dalmuti' ? 8 : 10),
+        maxPlayers: Math.min(Math.max(maxPlayers, gameType === 'dalmuti' ? 4 : 2), gameType === 'gomoku' ? 2 : gameType === 'davinci-code' ? 4 : (gameType === 'dalmuti' || gameType === 'flick') ? 8 : 10),
         players: [user],
         spectators: [],
         botIds: new Set(),
@@ -948,13 +1011,16 @@ export function setupSocket(io: Server) {
         gomokuState: null,
         gomokuTimer: null,
         gomokuSettings: { totalTime: 300000, moveTime: 30000, colorChoice: 'random' },
+        teams: new Map(),
         dalmutiState: null,
+        flickState: null,
         davinciState: null,
         status: 'waiting',
         readyForNext: new Set(),
       };
 
       rooms.set(roomId, room);
+      autoAssignTeam(room, user.id);
       socket.leave('lobby');
       socket.join(roomId);
       socket.emit('room:created', roomId);
@@ -971,6 +1037,7 @@ export function setupSocket(io: Server) {
       if (room.players.find((p) => p.id === user.id)) return socket.emit('error', '이미 참가한 방입니다.');
 
       room.players.push(user);
+      autoAssignTeam(room, user.id);
       socket.leave('lobby');
       socket.join(roomId);
       socket.emit('room:joined', roomId);
@@ -1051,6 +1118,15 @@ export function setupSocket(io: Server) {
           socket.emit('game:state', { gameType: 'dalmuti', ...getDalmutiPlayerView(room.dalmutiState, user.id) });
         }
       }
+
+      if (room.flickState) {
+        const isSpectator = room.spectators.find((s) => s.id === user.id);
+        if (isSpectator) {
+          socket.emit('game:state', { gameType: 'flick', ...getFlickSpectatorView(room.flickState) });
+        } else {
+          socket.emit('game:state', { gameType: 'flick', ...getFlickPlayerView(room.flickState, user.id) });
+        }
+      }
     });
 
     // Add bot (host only)
@@ -1062,6 +1138,7 @@ export function setupSocket(io: Server) {
         const bot = createBot();
         room.players.push(bot);
         room.botIds.add(bot.id);
+        autoAssignTeam(room, bot.id);
         broadcastRoomState(io, room);
         broadcastRoomList(io);
         break;
@@ -1076,8 +1153,22 @@ export function setupSocket(io: Server) {
 
         room.players = room.players.filter((p) => p.id !== botId);
         room.botIds.delete(botId);
+        room.teams.delete(botId);
         broadcastRoomState(io, room);
         broadcastRoomList(io);
+        break;
+      }
+    });
+
+    // Switch team (host only, flick only)
+    socket.on('room:switch_team', (targetPlayerId: number) => {
+      for (const [, room] of rooms) {
+        if (room.hostId !== user.id || room.status !== 'waiting' || room.gameType !== 'flick') continue;
+        if (!room.teams.has(targetPlayerId)) continue;
+
+        const current = room.teams.get(targetPlayerId)!;
+        room.teams.set(targetPlayerId, current === 0 ? 1 : 0);
+        broadcastRoomState(io, room);
         break;
       }
     });
@@ -1119,7 +1210,9 @@ export function setupSocket(io: Server) {
           room.status = 'playing';
           const playerInfos = room.players.map((p) => ({ id: p.id, nickname: p.nickname }));
 
-          if (room.gameType === 'dalmuti') {
+          if (room.gameType === 'flick') {
+            room.flickState = initFlick(playerInfos, room.teams);
+          } else if (room.gameType === 'dalmuti') {
             room.dalmutiState = initDalmuti(playerInfos);
             // Bot might start first
             setTimeout(() => dalmutiBotTurn(io, room), 500);
@@ -1399,6 +1492,33 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // ===== Flick (알까기) events =====
+    socket.on('flick:shoot', ({ stoneId, dx, dy }: { stoneId: number; dx: number; dy: number }) => {
+      for (const [, room] of rooms) {
+        if (room.flickState && room.players.find((p) => p.id === user.id)) {
+          if (flickStone(room.flickState, user.id, stoneId, dx, dy)) {
+            // Send simulation frames as separate event
+            const frames = room.flickState.simulationFrames;
+            io.to(room.id).emit('flick:animation', frames);
+
+            // After animation delay, apply final positions and send updated state
+            const frameCount = frames?.length || 0;
+            const animDurationMs = frameCount * 33 + 300;
+
+            setTimeout(() => {
+              if (!room.flickState || room.flickState.phase !== 'simulating') return;
+              flickApplySimulation(room.flickState);
+              broadcastGameState(io, room);
+              if (room.flickState.phase === 'game_over') {
+                grantFlickExp(io, room);
+              }
+            }, animDurationMs);
+          }
+          break;
+        }
+      }
+    });
+
     // ===== Dalmuti events =====
     socket.on('dalmuti:play', ({ cardRanks }: { cardRanks: number[] }) => {
       for (const [, room] of rooms) {
@@ -1505,11 +1625,13 @@ export function setupSocket(io: Server) {
         const davinciDone = room.davinciState && room.davinciState.phase === 'game_over';
         const gomokuDone = room.gomokuState && room.gomokuState.phase === 'game_over';
         const dalmutiDone = room.dalmutiState && (room.dalmutiState.phase === 'game_over' || room.dalmutiState.phase === 'round_end');
-        if (sixNimmtDone || davinciDone || gomokuDone || dalmutiDone) {
+        const flickDone = room.flickState && room.flickState.phase === 'game_over';
+        if (sixNimmtDone || davinciDone || gomokuDone || dalmutiDone || flickDone) {
           room.gameState = null;
           room.davinciState = null;
           room.gomokuState = null;
           room.dalmutiState = null;
+          room.flickState = null;
           if (room.gomokuTimer) { clearInterval(room.gomokuTimer); room.gomokuTimer = null; }
           room.status = 'waiting';
 
