@@ -48,6 +48,16 @@ export default function FlickGame({ socket, gameState }: Props) {
   const animStonesRef = useRef<StoneView[] | null>(null);
   const animFrameRef = useRef<number>(0);
   const [replaceToast, setReplaceToast] = useState<string | null>(null);
+  const resultSnapshot = useRef<{ winningTeam: number | null; winReason: string | null; players: PlayerView[] } | null>(null);
+
+  // Capture result snapshot once on game over
+  if (gameState.phase === 'game_over' && !resultSnapshot.current) {
+    resultSnapshot.current = {
+      winningTeam: gameState.winningTeam,
+      winReason: gameState.winReason,
+      players: [...gameState.players],
+    };
+  }
 
   const expGained = useExpGained(socket);
   const isSpectating = gameState.spectating === true;
@@ -353,14 +363,14 @@ export default function FlickGame({ socket, gameState }: Props) {
           </div>
 
           {/* Game over */}
-          {gameState.phase === 'game_over' && (
+          {gameState.phase === 'game_over' && resultSnapshot.current && (
             <div className="modal-overlay">
               <div className="modal score-modal">
-                <h2 style={{ color: TEAM_COLORS[gameState.winningTeam!] }}>
-                  {TEAM_NAMES[gameState.winningTeam!]} 팀 승리!
+                <h2 style={{ color: TEAM_COLORS[resultSnapshot.current.winningTeam!] }}>
+                  {TEAM_NAMES[resultSnapshot.current.winningTeam!]} 팀 승리!
                 </h2>
                 <p className="gomoku-win-reason">
-                  {gameState.winReason === 'eliminate' ? '상대 팀 돌 전멸!' : '상대 팀 전원 이탈'}
+                  {resultSnapshot.current.winReason === 'eliminate' ? '상대 팀 돌 전멸!' : '상대 팀 전원 이탈'}
                 </p>
                 <div className="modal-actions">
                   <button onClick={leaveGame} className="btn-secondary">나가기</button>

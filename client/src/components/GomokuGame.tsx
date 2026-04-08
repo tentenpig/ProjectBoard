@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Socket } from 'socket.io-client';
@@ -62,6 +62,10 @@ export default function GomokuGame({ socket, gameState }: Props) {
   const isSpectating = gameState.spectating === true;
   const isMyTurn = !isSpectating && gameState.myColor === gameState.currentColor && gameState.phase === 'playing';
   const isHost = gameState.players[0]?.id === user?.id;
+  const resultSnapshot = useRef<typeof gameState | null>(null);
+  if (gameState.phase === 'game_over' && !resultSnapshot.current) {
+    resultSnapshot.current = { ...gameState };
+  }
 
   // Tick every 100ms for timer display
   useEffect(() => {
@@ -171,16 +175,18 @@ export default function GomokuGame({ socket, gameState }: Props) {
           )}
 
           {/* Game over */}
-          {gameState.phase === 'game_over' && (
+          {gameState.phase === 'game_over' && resultSnapshot.current && (() => {
+            const rs = resultSnapshot.current!;
+            return (
             <div className="modal-overlay">
               <div className="modal score-modal">
-                <h2>{gameState.winnerId ? `${gameState.players.find((p) => p.id === gameState.winnerId)?.nickname} 승리!` : '무승부'}</h2>
-                {gameState.winReason && <p className="gomoku-win-reason">{winReasonText[gameState.winReason]}</p>}
+                <h2>{rs.winnerId ? `${rs.players.find((p: any) => p.id === rs.winnerId)?.nickname} 승리!` : '무승부'}</h2>
+                {rs.winReason && <p className="gomoku-win-reason">{winReasonText[rs.winReason]}</p>}
                 <div className="dv-result-list">
-                  {gameState.players.map((p) => (
-                    <div key={p.id} className={`dv-result-item ${p.id === gameState.winnerId ? 'winner' : ''}`}>
+                  {rs.players.map((p: any) => (
+                    <div key={p.id} className={`dv-result-item ${p.id === rs.winnerId ? 'winner' : ''}`}>
                       <span>{p.color === 'black' ? '●' : '○'} {p.nickname}</span>
-                      <span>{p.id === gameState.winnerId ? '승리' : '패배'}</span>
+                      <span>{p.id === rs.winnerId ? '승리' : '패배'}</span>
                     </div>
                   ))}
                 </div>
@@ -191,7 +197,8 @@ export default function GomokuGame({ socket, gameState }: Props) {
                 <ExpGainedBadge data={expGained} />
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
       <ChatPanel channel={roomId!} />

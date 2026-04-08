@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Socket } from 'socket.io-client';
@@ -63,6 +63,10 @@ export default function DaVinciGame({ socket, gameState }: Props) {
   const isMyTurn = gameState.currentPlayerId === user?.id;
   const isSpectating = gameState.spectating === true;
   const myPlayer = gameState.players.find((p) => p.id === user?.id);
+  const resultSnapshot = useRef<typeof gameState | null>(null);
+  if (gameState.phase === 'game_over' && !resultSnapshot.current) {
+    resultSnapshot.current = { ...gameState };
+  }
 
   useEffect(() => {
     const handleResult = (data: any) => {
@@ -323,15 +327,17 @@ export default function DaVinciGame({ socket, gameState }: Props) {
           )}
 
           {/* Game over */}
-          {gameState.phase === 'game_over' && (
+          {gameState.phase === 'game_over' && resultSnapshot.current && (() => {
+            const rs = resultSnapshot.current!;
+            return (
             <div className="modal-overlay">
               <div className="modal score-modal">
                 <h2>게임 종료!</h2>
                 <div className="dv-result-list">
-                  {gameState.players.map((p) => (
-                    <div key={p.id} className={`dv-result-item ${p.id === gameState.winnerId ? 'winner' : ''}`}>
+                  {rs.players.map((p: any) => (
+                    <div key={p.id} className={`dv-result-item ${p.id === rs.winnerId ? 'winner' : ''}`}>
                       <span>{p.nickname}</span>
-                      <span>{p.id === gameState.winnerId ? '승리!' : '탈락'}</span>
+                      <span>{p.id === rs.winnerId ? '승리!' : '탈락'}</span>
                     </div>
                   ))}
                 </div>
@@ -342,7 +348,8 @@ export default function DaVinciGame({ socket, gameState }: Props) {
                 <ExpGainedBadge data={expGained} />
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
       <ChatPanel channel={roomId!} />
