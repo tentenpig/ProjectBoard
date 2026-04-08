@@ -35,6 +35,16 @@
         "base": 0,
         "perPlayer": 10
       }
+    },
+    "dalmuti": {
+      "participate": {
+        "base": 0,
+        "perPlayer": 5
+      },
+      "win": {
+        "base": 0,
+        "perPlayer": 15
+      }
     }
   }
 }

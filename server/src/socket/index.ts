@@ -41,6 +41,15 @@ import {
   getSpectatorView as getGomokuSpectatorView,
   isForbidden,
 } from '../games/gomoku/logic';
+import {
+  DalmutiState,
+  initGame as initDalmuti,
+  playCards as dalmutiPlayCards,
+  pass as dalmutiPass,
+  startNextRound as dalmutiNextRound,
+  getPlayerView as getDalmutiPlayerView,
+  getSpectatorView as getDalmutiSpectatorView,
+} from '../games/dalmuti/logic';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -64,6 +73,7 @@ interface Room {
   gomokuState: GomokuState | null;
   gomokuTimer: ReturnType<typeof setInterval> | null;
   gomokuSettings: { totalTime: number; moveTime: number; colorChoice: string };
+  dalmutiState: DalmutiState | null;
   status: 'waiting' | 'playing';
   readyForNext: Set<number>;
 }
@@ -184,6 +194,32 @@ function gomokuBotMove(io: Server, room: Room) {
   }, 500 + Math.random() * 1000);
 }
 
+function grantDalmutiExp(io: Server, room: Room) {
+  if (!room.dalmutiState || room.dalmutiState.phase !== 'game_over') return;
+  const humanCount = countEffectiveHumans(room);
+  const participate = calcReward('dalmuti', 'participate', humanCount);
+  const winBonus = calcReward('dalmuti', 'win', humanCount);
+  if (participate <= 0 && winBonus <= 0) return;
+  // Winner = player with most 1st place finishes across rounds
+  const scoreboard: Record<number, number> = {};
+  for (const round of room.dalmutiState.roundResults) {
+    for (const r of round) {
+      scoreboard[r.playerId] = (scoreboard[r.playerId] || 0) + (room.dalmutiState.players.length - r.position + 1);
+    }
+  }
+  const maxScore = Math.max(...Object.values(scoreboard));
+  const winnerId = Object.entries(scoreboard).find(([, v]) => v === maxScore)?.[0];
+
+  const rewards = room.dalmutiState.players
+    .filter((p) => !room.botIds.has(p.id))
+    .map((p) => ({
+      playerId: p.id,
+      exp: participate + (String(p.id) === winnerId ? winBonus : 0),
+      reason: String(p.id) === winnerId ? '달무티 승리' : '달무티 참가',
+    }));
+  grantExp(io, room, rewards);
+}
+
 function grantGomokuExp(io: Server, room: Room) {
   if (!room.gomokuState || room.gomokuState.phase !== 'game_over') return;
   const humanCount = countEffectiveHumans(room);
@@ -231,6 +267,18 @@ function broadcastRoomState(io: Server, room: Room) {
 }
 
 function broadcastGameState(io: Server, room: Room) {
+  if (room.dalmutiState) {
+    for (const player of room.players) {
+      const s = userSockets.get(player.id);
+      if (s) s.emit('game:state', { gameType: 'dalmuti', ...getDalmutiPlayerView(room.dalmutiState, player.id) });
+    }
+    for (const spec of room.spectators) {
+      const s = userSockets.get(spec.id);
+      if (s) s.emit('game:state', { gameType: 'dalmuti', ...getDalmutiSpectatorView(room.dalmutiState) });
+    }
+    return;
+  }
+
   if (room.gomokuState) {
     for (const player of room.players) {
       const socket = userSockets.get(player.id);
@@ -646,7 +694,7 @@ function removeUserFromRoom(io: Server, socket: Socket, user: UserInfo) {
     }
 
     // If game is in progress, replace with bot
-    if (room.gameState || room.davinciState || room.gomokuState) {
+    if (room.gameState || room.davinciState || room.gomokuState || room.dalmutiState) {
       const bot = createBot();
       bot.nickname = `BOT (${user.nickname})`;
       room.players.push(bot);
@@ -804,7 +852,7 @@ export function setupSocket(io: Server) {
         name,
         hostId: user.id,
         gameType,
-        maxPlayers: Math.min(Math.max(maxPlayers, 2), gameType === 'gomoku' ? 2 : gameType === 'davinci-code' ? 4 : 10),
+        maxPlayers: Math.min(Math.max(maxPlayers, gameType === 'dalmuti' ? 4 : 2), gameType === 'gomoku' ? 2 : gameType === 'davinci-code' ? 4 : gameType === 'dalmuti' ? 8 : 10),
         players: [user],
         spectators: [],
         botIds: new Set(),
@@ -813,6 +861,7 @@ export function setupSocket(io: Server) {
         gomokuState: null,
         gomokuTimer: null,
         gomokuSettings: { totalTime: 300000, moveTime: 30000, colorChoice: 'random' },
+        dalmutiState: null,
         davinciState: null,
         status: 'waiting',
         readyForNext: new Set(),
@@ -906,6 +955,15 @@ export function setupSocket(io: Server) {
           socket.emit('game:state', { gameType: 'gomoku', ...getGomokuPlayerView(room.gomokuState, user.id) });
         }
       }
+
+      if (room.dalmutiState) {
+        const isSpectator = room.spectators.find((s) => s.id === user.id);
+        if (isSpectator) {
+          socket.emit('game:state', { gameType: 'dalmuti', ...getDalmutiSpectatorView(room.dalmutiState) });
+        } else {
+          socket.emit('game:state', { gameType: 'dalmuti', ...getDalmutiPlayerView(room.dalmutiState, user.id) });
+        }
+      }
     });
 
     // Add bot (host only)
@@ -974,7 +1032,9 @@ export function setupSocket(io: Server) {
           room.status = 'playing';
           const playerInfos = room.players.map((p) => ({ id: p.id, nickname: p.nickname }));
 
-          if (room.gameType === 'gomoku') {
+          if (room.gameType === 'dalmuti') {
+            room.dalmutiState = initDalmuti(playerInfos);
+          } else if (room.gameType === 'gomoku') {
             const gs = room.gomokuSettings;
             room.gomokuState = initGomoku(playerInfos, gs.colorChoice as any, gs.totalTime, gs.moveTime);
 
@@ -1250,6 +1310,56 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // ===== Dalmuti events =====
+    socket.on('dalmuti:play', ({ cardRanks }: { cardRanks: number[] }) => {
+      for (const [, room] of rooms) {
+        if (room.dalmutiState && room.players.find((p) => p.id === user.id)) {
+          if (dalmutiPlayCards(room.dalmutiState, user.id, cardRanks)) {
+            broadcastGameState(io, room);
+            if (room.dalmutiState.phase === 'game_over') {
+              grantDalmutiExp(io, room);
+            }
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('dalmuti:pass', () => {
+      for (const [, room] of rooms) {
+        if (room.dalmutiState && room.players.find((p) => p.id === user.id)) {
+          if (dalmutiPass(room.dalmutiState, user.id)) {
+            broadcastGameState(io, room);
+          }
+          break;
+        }
+      }
+    });
+
+    socket.on('dalmuti:next_round', () => {
+      for (const [, room] of rooms) {
+        if (room.dalmutiState && room.players.find((p) => p.id === user.id)) {
+          room.readyForNext.add(user.id);
+          // Bots auto-ready
+          for (const botId of room.botIds) room.readyForNext.add(botId);
+
+          io.to(room.id).emit('game:ready_status', {
+            ready: Array.from(room.readyForNext),
+            total: room.players.length,
+          });
+
+          if (room.readyForNext.size >= room.players.length) {
+            room.readyForNext.clear();
+            if (dalmutiNextRound(room.dalmutiState)) {
+              broadcastGameState(io, room);
+              io.to(room.id).emit('game:new_round', room.dalmutiState.round);
+            }
+          }
+          break;
+        }
+      }
+    });
+
     // ===== Gomoku events =====
     socket.on('gomoku:place', ({ row, col }: { row: number; col: number }) => {
       for (const [, room] of rooms) {
@@ -1299,10 +1409,12 @@ export function setupSocket(io: Server) {
         const sixNimmtDone = room.gameState && (room.gameState.phase === 'game_over' || room.gameState.phase === 'round_end');
         const davinciDone = room.davinciState && room.davinciState.phase === 'game_over';
         const gomokuDone = room.gomokuState && room.gomokuState.phase === 'game_over';
-        if (sixNimmtDone || davinciDone || gomokuDone) {
+        const dalmutiDone = room.dalmutiState && (room.dalmutiState.phase === 'game_over' || room.dalmutiState.phase === 'round_end');
+        if (sixNimmtDone || davinciDone || gomokuDone || dalmutiDone) {
           room.gameState = null;
           room.davinciState = null;
           room.gomokuState = null;
+          room.dalmutiState = null;
           if (room.gomokuTimer) { clearInterval(room.gomokuTimer); room.gomokuTimer = null; }
           room.status = 'waiting';
 

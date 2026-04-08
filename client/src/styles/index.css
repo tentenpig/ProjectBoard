@@ -2668,3 +2668,206 @@ button {
     font-size: 14px;
   }
 }
+
+/* ========== Dalmuti ========== */
+.dal-trick-area {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 8px;
+  text-align: center;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dal-trick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dal-trick-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.dal-trick-cards {
+  display: flex;
+  gap: 4px;
+}
+
+.dal-trick-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.dal-card {
+  width: 52px;
+  height: 72px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.dal-card-small {
+  width: 40px;
+  height: 56px;
+}
+
+.dal-card-rank {
+  font-size: 22px;
+}
+
+.dal-card-small .dal-card-rank {
+  font-size: 18px;
+}
+
+.dal-card-name {
+  font-size: 9px;
+  opacity: 0.8;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.dal-card-playable {
+  cursor: pointer;
+}
+
+.dal-card-playable:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dal-card-selected {
+  transform: translateY(-10px);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.4);
+  border-color: #fff !important;
+}
+
+.dal-players {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.dal-player {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  border-radius: 6px;
+  padding: 6px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 120px;
+  transition: border-color 0.2s;
+}
+
+.dal-player.active {
+  border-color: var(--accent);
+}
+
+.dal-player.finished {
+  opacity: 0.6;
+}
+
+.dal-player.passed {
+  opacity: 0.7;
+}
+
+.dal-player-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dal-player-name {
+  font-weight: 500;
+}
+
+.dal-player-name.is-me {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dal-player-cards {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.dal-finish-badge {
+  font-size: 11px;
+  background: var(--success);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.dal-pass-badge {
+  font-size: 11px;
+  background: var(--text-muted);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.dal-hand-area {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.dal-hand {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.dal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .dal-card {
+    width: 42px;
+    height: 58px;
+  }
+
+  .dal-card-rank { font-size: 18px; }
+  .dal-card-name { font-size: 8px; }
+
+  .dal-card-small {
+    width: 34px;
+    height: 48px;
+  }
+
+  .dal-card-small .dal-card-rank { font-size: 14px; }
+
+  .dal-player {
+    min-width: 100px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
