@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Socket } from 'socket.io-client';
 import ChatPanel from './ChatPanel';
+import ExpGainedBadge from './ExpGainedBadge';
+import { useExpGained } from '../hooks/useExpGained';
 
 const BOARD_W = 600;
 const BOARD_H = 600;
@@ -44,6 +46,7 @@ export default function FlickGame({ socket, gameState }: Props) {
   const animFrameRef = useRef<number>(0);
   const [replaceToast, setReplaceToast] = useState<string | null>(null);
 
+  const expGained = useExpGained(socket);
   const isSpectating = gameState.spectating === true;
   const isMyTurn = !isSpectating && gameState.currentPlayerId === user?.id && gameState.phase === 'aiming';
   const isHost = gameState.players[0]?.id === user?.id;
@@ -343,6 +346,7 @@ export default function FlickGame({ socket, gameState }: Props) {
                   <button onClick={leaveGame} className="btn-secondary">나가기</button>
                   {isHost && <button onClick={returnToLobby} className="btn-primary">로비로 돌아가기</button>}
                 </div>
+                <ExpGainedBadge data={expGained} />
               </div>
             </div>
           )}
