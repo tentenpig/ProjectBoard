@@ -40,7 +40,7 @@ export interface FlickState {
   walls: Wall[];
   players: FlickPlayer[];
   currentTeam: 0 | 1;
-  currentPlayerIndex: number; // index within team's player list
+  teamPlayerIndex: [number, number]; // per-team rotation index
   phase: 'aiming' | 'simulating' | 'game_over';
   winnerId: number | null; // winning team (0 or 1), stored as team number
   winningTeam: 0 | 1 | null;
@@ -102,7 +102,7 @@ export function initGame(playerInfos: { id: number; nickname: string }[], teamsM
     walls,
     players,
     currentTeam: 0,
-    currentPlayerIndex: 0,
+    teamPlayerIndex: [0, 0],
     phase: 'aiming',
     winnerId: null,
     winningTeam: null,
@@ -113,9 +113,10 @@ export function initGame(playerInfos: { id: number; nickname: string }[], teamsM
 }
 
 export function getCurrentPlayerId(state: FlickState): number | null {
-  const teamPlayers = state.players.filter((p) => p.team === state.currentTeam && p.connected);
+  const team = state.currentTeam;
+  const teamPlayers = state.players.filter((p) => p.team === team && p.connected);
   if (teamPlayers.length === 0) return null;
-  const idx = state.currentPlayerIndex % teamPlayers.length;
+  const idx = state.teamPlayerIndex[team] % teamPlayers.length;
   return teamPlayers[idx].id;
 }
 
@@ -182,21 +183,25 @@ export function applySimulation(state: FlickState): void {
 }
 
 function advanceTurn(state: FlickState) {
-  // Switch team
+  // Advance current team's player index for next time they play
+  const prevTeam = state.currentTeam;
+  const prevTeamPlayers = state.players.filter((p) => p.team === prevTeam && p.connected);
+  if (prevTeamPlayers.length > 0) {
+    state.teamPlayerIndex[prevTeam] = (state.teamPlayerIndex[prevTeam] + 1) % prevTeamPlayers.length;
+  }
+
+  // Switch to other team
   state.currentTeam = state.currentTeam === 0 ? 1 : 0;
 
-  // Check if the team has connected players
-  const teamPlayers = state.players.filter((p) => p.team === state.currentTeam && p.connected);
-  if (teamPlayers.length === 0) {
-    // No connected players on this team — other team wins
+  // Check if the next team has connected players
+  const nextTeamPlayers = state.players.filter((p) => p.team === state.currentTeam && p.connected);
+  if (nextTeamPlayers.length === 0) {
     state.phase = 'game_over';
     state.winningTeam = state.currentTeam === 0 ? 1 : 0;
     state.winReason = 'abandon';
     return;
   }
 
-  // Rotate player within team
-  state.currentPlayerIndex = (state.currentPlayerIndex + 1) % teamPlayers.length;
   state.phase = 'aiming';
   state.simulationFrames = null;
 }
