@@ -16,9 +16,12 @@ interface StoneView { id: number; team: number; x: number; y: number; alive: boo
 interface PlayerView { id: number; nickname: string; team: number; connected: boolean; }
 interface SimFrame { stones: { id: number; x: number; y: number; alive: boolean }[]; }
 
+interface WallView { x: number; y: number; w: number; h: number; }
+
 interface FlickStateView {
   gameType: 'flick';
   stones: StoneView[];
+  walls: WallView[];
   players: PlayerView[];
   currentTeam: number;
   currentPlayerId: number | null;
@@ -131,6 +134,23 @@ export default function FlickGame({ socket, gameState }: Props) {
     ctx.moveTo(canvas.width / 2, 0);
     ctx.lineTo(canvas.width / 2, canvas.height);
     ctx.stroke();
+
+    // Walls
+    for (const wall of gameState.walls || []) {
+      const wx = wall.x * scale;
+      const wy = wall.y * scale;
+      const ww = wall.w * scale;
+      const wh = wall.h * scale;
+
+      ctx.fillStyle = '#4a3520';
+      ctx.fillRect(wx, wy, ww, wh);
+      ctx.strokeStyle = '#2a1a0a';
+      ctx.lineWidth = 2 * scale;
+      ctx.strokeRect(wx, wy, ww, wh);
+      // Top highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(wx, wy, ww, 2 * scale);
+    }
 
     // Stones
     for (const stone of displayStones) {

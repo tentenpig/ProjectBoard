@@ -9,6 +9,14 @@ export const MIN_SPEED = 0.3;
 export const MAX_POWER = 18;
 export const SIMULATION_DT = 1 / 60;
 export const STONES_PER_TEAM = 5;
+export const WALL_COUNT = 2;
+
+export interface Wall {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export interface Stone {
   id: number;
@@ -29,6 +37,7 @@ export interface FlickPlayer {
 
 export interface FlickState {
   stones: Stone[];
+  walls: Wall[];
   players: FlickPlayer[];
   currentTeam: 0 | 1;
   currentPlayerIndex: number; // index within team's player list
@@ -76,8 +85,21 @@ export function initGame(playerInfos: { id: number; nickname: string }[], teamsM
     });
   }
 
+  // Generate random walls (avoid stone positions)
+  const walls: Wall[] = [];
+  for (let i = 0; i < WALL_COUNT; i++) {
+    const isHorizontal = Math.random() > 0.5;
+    const w = isHorizontal ? 60 + Math.random() * 60 : 15;
+    const h = isHorizontal ? 15 : 60 + Math.random() * 60;
+    // Place in middle area, avoiding edges and stone clusters
+    const x = 180 + Math.random() * (BOARD_W - 360);
+    const y = 150 + Math.random() * (BOARD_H - 300);
+    walls.push({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
+  }
+
   return {
     stones,
+    walls,
     players,
     currentTeam: 0,
     currentPlayerIndex: 0,
@@ -116,7 +138,7 @@ export function flickStone(state: FlickState, playerId: number, stoneId: number,
 
   // Run simulation
   state.phase = 'simulating';
-  state.simulationFrames = runSimulation(state.stones);
+  state.simulationFrames = runSimulation(state.stones, state.walls);
   state.turnCount++;
 
   // Don't apply final positions yet — wait for applySimulation()
@@ -207,7 +229,7 @@ export function playerDisconnected(state: FlickState, playerId: number): void {
 }
 
 // ===== Physics simulation =====
-function runSimulation(stones: Stone[]): { stones: { id: number; x: number; y: number; alive: boolean }[] }[] {
+function runSimulation(stones: Stone[], walls: Wall[]): { stones: { id: number; team: number; x: number; y: number; alive: boolean }[] }[] {
   // Deep copy for simulation
   const sim = stones.filter((s) => s.alive).map((s) => ({
     id: s.id, team: s.team,
@@ -215,8 +237,8 @@ function runSimulation(stones: Stone[]): { stones: { id: number; x: number; y: n
     alive: true, radius: STONE_RADIUS,
   }));
 
-  const frames: { stones: { id: number; x: number; y: number; alive: boolean }[] }[] = [];
-  const maxTicks = 300; // ~5 seconds at 60fps
+  const frames: { stones: { id: number; team: number; x: number; y: number; alive: boolean }[] }[] = [];
+  const maxTicks = 300;
 
   for (let tick = 0; tick < maxTicks; tick++) {
     // Move
@@ -227,10 +249,50 @@ function runSimulation(stones: Stone[]): { stones: { id: number; x: number; y: n
       s.vx *= FRICTION;
       s.vy *= FRICTION;
 
-      // Stop if too slow
       if (Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED) {
         s.vx = 0;
         s.vy = 0;
+      }
+    }
+
+    // Wall collision
+    for (const s of sim) {
+      if (!s.alive) continue;
+      for (const wall of walls) {
+        // Find closest point on wall rect to stone center
+        const closestX = Math.max(wall.x, Math.min(s.x, wall.x + wall.w));
+        const closestY = Math.max(wall.y, Math.min(s.y, wall.y + wall.h));
+        const dx = s.x - closestX;
+        const dy = s.y - closestY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < s.radius && dist > 0) {
+          // Push stone out and reflect velocity
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const overlap = s.radius - dist;
+          s.x += nx * overlap;
+          s.y += ny * overlap;
+
+          // Reflect velocity
+          const dot = s.vx * nx + s.vy * ny;
+          s.vx -= 2 * dot * nx;
+          s.vy -= 2 * dot * ny;
+          // Dampen on wall hit
+          s.vx *= 0.7;
+          s.vy *= 0.7;
+        } else if (dist === 0) {
+          // Stone center inside wall, push out
+          const cx = wall.x + wall.w / 2;
+          const cy = wall.y + wall.h / 2;
+          const ex = s.x - cx;
+          const ey = s.y - cy;
+          const emag = Math.sqrt(ex * ex + ey * ey) || 1;
+          s.x += (ex / emag) * (s.radius + 5);
+          s.y += (ey / emag) * (s.radius + 5);
+          s.vx *= -0.5;
+          s.vy *= -0.5;
+        }
       }
     }
 
@@ -306,6 +368,7 @@ export function getPlayerView(state: FlickState, playerId: number) {
   const myTeam = state.players.find((p) => p.id === playerId)?.team ?? null;
   return {
     stones: state.stones.map((s) => ({ id: s.id, team: s.team, x: s.x, y: s.y, alive: s.alive })),
+    walls: state.walls,
     players: state.players.map((p) => ({ id: p.id, nickname: p.nickname, team: p.team, connected: p.connected })),
     currentTeam: state.currentTeam,
     currentPlayerId: getCurrentPlayerId(state),
