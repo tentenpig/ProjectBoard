@@ -194,6 +194,93 @@ function gomokuBotMove(io: Server, room: Room) {
   }, 500 + Math.random() * 1000);
 }
 
+function dalmutiBotTurn(io: Server, room: Room) {
+  if (!room.dalmutiState || room.dalmutiState.phase !== 'playing') return;
+  const currentId = room.dalmutiState.currentPlayerId;
+  if (!room.botIds.has(currentId)) return;
+
+  const state = room.dalmutiState;
+  const player = state.players.find((p) => p.id === currentId);
+  if (!player || player.finished || player.passed) return;
+
+  setTimeout(() => {
+    if (!room.dalmutiState || room.dalmutiState.currentPlayerId !== currentId) return;
+
+    const hand = player.hand;
+    const trick = state.currentTrick;
+
+    if (!trick) {
+      // Leading: play the highest rank (weakest) set to save strong cards
+      // Group hand by rank
+      const groups = new Map<number, number>();
+      for (const c of hand) groups.set(c.rank, (groups.get(c.rank) || 0) + 1);
+
+      // Play the highest rank group (weakest cards first)
+      let bestRank = -1;
+      let bestCount = 0;
+      for (const [rank, count] of groups) {
+        if (rank === 13) continue; // don't lead with jesters alone
+        if (rank > bestRank) { bestRank = rank; bestCount = count; }
+      }
+
+      if (bestRank > 0) {
+        const cardRanks = Array(bestCount).fill(bestRank);
+        dalmutiPlayCards(state, currentId, cardRanks);
+      } else {
+        // Only jesters left
+        dalmutiPlayCards(state, currentId, [13]);
+      }
+    } else {
+      // Must match count and beat rank
+      const needed = trick.count;
+      const maxRank = trick.effectiveRank - 1;
+
+      // Group hand by rank
+      const groups = new Map<number, number>();
+      for (const c of hand) groups.set(c.rank, (groups.get(c.rank) || 0) + 1);
+      const jesterCount = groups.get(13) || 0;
+
+      // Find a playable combination: prefer weakest valid play
+      let played = false;
+      for (let rank = maxRank; rank >= 1; rank--) {
+        const have = groups.get(rank) || 0;
+        if (have >= needed) {
+          dalmutiPlayCards(state, currentId, Array(needed).fill(rank));
+          played = true;
+          break;
+        }
+        // Try with jesters
+        if (have > 0 && have + jesterCount >= needed) {
+          const cardRanks = Array(have).fill(rank).concat(Array(needed - have).fill(13));
+          dalmutiPlayCards(state, currentId, cardRanks);
+          played = true;
+          break;
+        }
+      }
+
+      if (!played) {
+        dalmutiPass(state, currentId);
+      }
+    }
+
+    broadcastGameState(io, room);
+
+    if (state.phase === 'game_over') {
+      grantDalmutiExp(io, room);
+      return;
+    }
+
+    if (state.phase === 'round_end') {
+      // Bots auto-ready
+      for (const botId of room.botIds) room.readyForNext.add(botId);
+      return;
+    }
+
+    // Next turn might be a bot
+    dalmutiBotTurn(io, room);
+  }, 600 + Math.random() * 800);
+}
+
 function grantDalmutiExp(io: Server, room: Room) {
   if (!room.dalmutiState || room.dalmutiState.phase !== 'game_over') return;
   const humanCount = countEffectiveHumans(room);
@@ -1034,6 +1121,8 @@ export function setupSocket(io: Server) {
 
           if (room.gameType === 'dalmuti') {
             room.dalmutiState = initDalmuti(playerInfos);
+            // Bot might start first
+            setTimeout(() => dalmutiBotTurn(io, room), 500);
           } else if (room.gameType === 'gomoku') {
             const gs = room.gomokuSettings;
             room.gomokuState = initGomoku(playerInfos, gs.colorChoice as any, gs.totalTime, gs.moveTime);
@@ -1318,6 +1407,8 @@ export function setupSocket(io: Server) {
             broadcastGameState(io, room);
             if (room.dalmutiState.phase === 'game_over') {
               grantDalmutiExp(io, room);
+            } else if (room.dalmutiState.phase === 'playing') {
+              dalmutiBotTurn(io, room);
             }
           }
           break;
@@ -1330,6 +1421,9 @@ export function setupSocket(io: Server) {
         if (room.dalmutiState && room.players.find((p) => p.id === user.id)) {
           if (dalmutiPass(room.dalmutiState, user.id)) {
             broadcastGameState(io, room);
+            if (room.dalmutiState.phase === 'playing') {
+              dalmutiBotTurn(io, room);
+            }
           }
           break;
         }
@@ -1353,6 +1447,7 @@ export function setupSocket(io: Server) {
             if (dalmutiNextRound(room.dalmutiState)) {
               broadcastGameState(io, room);
               io.to(room.id).emit('game:new_round', room.dalmutiState.round);
+              dalmutiBotTurn(io, room);
             }
           }
           break;
