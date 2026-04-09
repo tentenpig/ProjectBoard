@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-const SERVER_URL = `http://${window.location.hostname}:3001`;
+import { SERVER_URL } from '../config';
 
 export default function Register() {
   const [username, setUsername] = useState('');

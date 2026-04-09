@@ -5,7 +5,7 @@ import { useSocket } from '../contexts/SocketContext';
 import Chat from '../components/Chat';
 import FishDetail from '../components/FishDetail';
 
-const SERVER_URL = `http://${window.location.hostname}:3001`;
+import { SERVER_URL } from '../config';
 
 interface FishDef {
   key: string; name: string; emoji: string; location: string;

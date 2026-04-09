@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
-const SERVER_URL = `http://${window.location.hostname}:3001`;
+import { SERVER_URL } from '../config';
 
 const SocketContext = createContext<Socket | null>(null);
 

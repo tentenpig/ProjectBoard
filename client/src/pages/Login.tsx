@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const SERVER_URL = `http://${window.location.hostname}:3001`;
+import { SERVER_URL } from '../config';
 
 export default function Login() {
   const [nickname, setNickname] = useState('');

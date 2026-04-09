@@ -1,0 +1,69 @@
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: projectboard-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: projectboard_test
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: projectboard-redis-test
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server-test:
+    build: ./server
+    container_name: projectboard-server-test
+    ports:
+      - "3002:3001"
+    environment:
+      DB_HOST: mysql-test
+      DB_PORT: 3306
+      DB_USER: appuser
+      DB_PASSWORD: apppassword
+      DB_NAME: projectboard_test
+      REDIS_HOST: redis-test
+      REDIS_PORT: 6379
+      JWT_SECRET: test-server-jwt-secret-key
+      PORT: 3001
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    volumes:
+      - ./server/src:/app/src
+
+  client-test:
+    build: ./client
+    container_name: projectboard-client-test
+    ports:
+      - "5174:5173"
+    depends_on:
+      - server-test
+    volumes:
+      - ./client/src:/app/src
+
+volumes:
+  mysql_test_data:
+  redis_test_data:

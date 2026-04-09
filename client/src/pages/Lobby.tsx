@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { SERVER_URL } from '../config';
 import ChatPanel from '../components/ChatPanel';
 
 interface RoomInfo {
@@ -40,7 +41,6 @@ export default function Lobby() {
   // Check daily reward on mount (handles refresh/new tab)
   useEffect(() => {
     if (!token || rewardPopup) return;
-    const SERVER_URL = `http://${window.location.hostname}:3001`;
     fetch(`${SERVER_URL}/api/auth/daily-check`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
