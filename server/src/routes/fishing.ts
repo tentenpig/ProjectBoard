@@ -5,6 +5,7 @@ import { RowDataPacket } from 'mysql2';
 import { calculateLevel } from '../config/level';
 import { updateLeaderboard } from '../config/redis';
 import fishData from '../config/fish.json';
+import fishSizeData from '../config/fishSize.json';
 import shopData from '../config/shop.json';
 
 const router = Router();
@@ -13,9 +14,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 interface FishDef {
   key: string; name: string; emoji: string; location: string;
   weight: number; minTime: number; maxTime: number; price: number; exp: number;
+  minSize: number; maxSize: number;
 }
 
-const allFish: FishDef[] = fishData.fish as FishDef[];
+const sizeMap = fishSizeData as Record<string, [number, number]>;
+const allFish: FishDef[] = (fishData.fish as any[]).map((f) => {
+  const size = sizeMap[f.key] || [10, 50];
+  return { ...f, minSize: size[0], maxSize: size[1] };
+});
 
 function authUser(req: Request): { id: number; nickname: string } | null {
   const token = req.headers['authorization']?.split(' ')[1];
@@ -30,13 +36,13 @@ router.get('/inventory', async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, fish_key, caught_at FROM fish_inventory WHERE user_id = ? AND sold = FALSE ORDER BY caught_at DESC',
+      'SELECT id, fish_key, caught_at, size_cm FROM fish_inventory WHERE user_id = ? AND sold = FALSE ORDER BY caught_at DESC',
       [user.id]
     );
 
     const inventory = rows.map((r) => {
       const fish = allFish.find((f) => f.key === r.fish_key);
-      return { ...fish, inventoryId: r.id, caughtAt: r.caught_at };
+      return { ...fish, inventoryId: r.id, caughtAt: r.caught_at, sizeCm: r.size_cm };
     });
 
     res.json({ inventory });
@@ -97,9 +103,10 @@ router.get('/encyclopedia', async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT DISTINCT fish_key FROM fish_inventory WHERE user_id = ?',
+      'SELECT fish_key, MIN(size_cm) as min_size, MAX(size_cm) as max_size, COUNT(*) as cnt FROM fish_inventory WHERE user_id = ? GROUP BY fish_key',
       [user.id]
     );
+    const caughtMap = new Map(rows.map((r) => [r.fish_key, { minSize: r.min_size, maxSize: r.max_size, count: r.cnt }]));
     const caughtKeys = new Set(rows.map((r) => r.fish_key));
 
     const encyclopedia = allFish.map((f) => ({
@@ -111,6 +118,9 @@ router.get('/encyclopedia', async (req: Request, res: Response) => {
       price: caughtKeys.has(f.key) ? f.price : null,
       exp: caughtKeys.has(f.key) ? f.exp : null,
       description: caughtKeys.has(f.key) ? (f as any).description : null,
+      recordMinSize: caughtMap.get(f.key)?.minSize || null,
+      recordMaxSize: caughtMap.get(f.key)?.maxSize || null,
+      caughtCount: caughtMap.get(f.key)?.count || 0,
     }));
 
     res.json({ encyclopedia, totalSpecies: allFish.length, caughtSpecies: caughtKeys.size });
@@ -122,7 +132,7 @@ router.get('/encyclopedia', async (req: Request, res: Response) => {
 
 // Fish data
 router.get('/fish-data', (_req: Request, res: Response) => {
-  res.json(fishData);
+  res.json({ ...fishData, fish: allFish });
 });
 
 export default router;

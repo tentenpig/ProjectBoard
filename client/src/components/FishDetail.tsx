@@ -8,6 +8,10 @@ interface FishInfo {
   exp?: number | null;
   description?: string;
   caught?: boolean;
+  sizeCm?: number;
+  recordMinSize?: number | null;
+  recordMaxSize?: number | null;
+  caughtCount?: number;
 }
 
 const LOCATION_NAMES: Record<string, string> = {
@@ -53,6 +57,19 @@ export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose:
               <span className="fish-stat-label">경험치</span>
               <span className="fish-stat-value">⭐ {fish.exp}</span>
             </div>
+            {fish.sizeCm && (
+              <div className="fish-stat">
+                <span className="fish-stat-label">크기</span>
+                <span className="fish-stat-value">📏 {fish.sizeCm}cm</span>
+              </div>
+            )}
+          </div>
+        )}
+        {(fish.recordMinSize || fish.recordMaxSize) && (
+          <div className="fish-detail-records">
+            <span className="fish-stat-label">내 기록</span>
+            <span> 최소 {fish.recordMinSize}cm / 최대 {fish.recordMaxSize}cm</span>
+            {fish.caughtCount && <span className="fish-record-count"> ({fish.caughtCount}마리 낚음)</span>}
           </div>
         )}
       </div>

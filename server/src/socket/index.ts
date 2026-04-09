@@ -1699,17 +1699,22 @@ export function setupSocket(io: Server) {
           // Check user is still in the fishing room
           if (!socket.rooms.has(`fishing:${location}`)) return;
 
+          // Generate random size
+          const minSize = (fish as any).minSize || 10;
+          const maxSize = (fish as any).maxSize || 50;
+          const sizeCm = Math.round((minSize + Math.random() * (maxSize - minSize)) * 10) / 10;
+
           // Add to inventory
-          await pool.query('INSERT INTO fish_inventory (user_id, fish_key) VALUES (?, ?)', [userId, fish.key]);
+          await pool.query('INSERT INTO fish_inventory (user_id, fish_key, size_cm) VALUES (?, ?, ?)', [userId, fish.key, sizeCm]);
 
           // Notify user
-          socket.emit('fishing:caught', { fish });
+          socket.emit('fishing:caught', { fish, sizeCm });
 
-          // Broadcast to location chat
-          // Send to fishing log (separate from chat)
+          // Send to fishing log
           io.to(`fishing:${location}`).emit('fishing:log', {
             nickname,
             fish: { key: fish.key, name: fish.name, emoji: fish.emoji, price: fish.price, exp: fish.exp, weight: fish.weight },
+            sizeCm,
             timestamp: Date.now(),
           });
 

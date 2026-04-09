@@ -1,0 +1,25 @@
+{
+  "crucian_carp": [10, 35], "pale_chub": [5, 12], "korean_gudgeon": [8, 18], "dark_chub": [8, 20],
+  "bluegill": [8, 22], "oily_shiner": [5, 10], "korean_loach": [10, 20], "dace": [20, 55],
+  "catfish": [30, 80], "sweetfish": [15, 30], "korean_perch": [10, 25], "snakehead": [30, 70],
+  "skygazer": [6, 12], "river_goby": [5, 12], "korean_chub": [20, 40], "cherry_salmon": [15, 35],
+  "mandarin_fish_r": [20, 45], "eel": [40, 90], "salmon": [50, 90], "river_turtle": [15, 30],
+  "softshell_turtle": [20, 40], "giant_salamander": [10, 25], "korean_sturgeon": [60, 150],
+  "golden_carp": [30, 70], "river_dragon": [200, 500], "river_spirit": [300, 800],
+
+  "bass": [20, 50], "carp": [30, 70], "perch": [25, 60], "lake_crucian": [12, 30],
+  "lake_shiner": [5, 12], "lake_bluegill": [8, 20], "freshwater_shrimp": [3, 8], "mudfish": [10, 20],
+  "catfish_lake": [30, 80], "pike": [30, 70], "trout": [25, 50], "rainbow_trout": [25, 55],
+  "lake_snakehead": [30, 65], "lake_eel": [40, 85], "lake_perch": [20, 45],
+  "korean_cherry_trout": [20, 40], "lake_crayfish": [8, 15], "giant_carp": [60, 100],
+  "giant_catfish": [70, 130], "lake_tortoise": [15, 35], "albino_carp": [35, 75],
+  "golden_mandarin": [25, 50], "lake_lungfish": [50, 100], "dragon_fish": [150, 400], "lake_spirit": [500, 1000],
+
+  "mackerel": [25, 40], "squid": [15, 40], "anchovy": [5, 12], "hairtail": [60, 120],
+  "sea_mullet": [30, 60], "horse_mackerel": [20, 35], "filefish": [15, 30], "sea_bass": [30, 80],
+  "croaker": [20, 40], "sea_bream": [20, 50], "flatfish": [30, 70], "rockfish": [20, 40],
+  "octopus": [30, 60], "abalone": [8, 15], "cuttlefish": [15, 35], "yellowtail": [40, 100],
+  "red_sea_bream": [25, 55], "snow_crab": [20, 40], "tuna": [60, 200], "marlin": [150, 350],
+  "giant_octopus": [100, 300], "bluefin_tuna": [100, 300], "sunfish": [80, 200],
+  "shark": [100, 300], "whale_shark": [400, 1200], "sea_king": [500, 1500]
+}

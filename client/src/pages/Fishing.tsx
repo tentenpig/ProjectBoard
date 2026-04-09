@@ -46,7 +46,7 @@ export default function Fishing() {
   const [casting, setCasting] = useState(false);
   const [catchTime, setCatchTime] = useState(0);
   const [lastCatch, setLastCatch] = useState<FishDef | null>(null);
-  const [fishLog, setFishLog] = useState<{ type: 'catch' | 'system'; nickname?: string; fish?: FishDef; text?: string; timestamp: number }[]>([]);
+  const [fishLog, setFishLog] = useState<{ type: 'catch' | 'system'; nickname?: string; fish?: FishDef; sizeCm?: number; text?: string; timestamp: number }[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
   const [fishingUsers, setFishingUsers] = useState<{ id: number; nickname: string }[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -432,7 +432,7 @@ export default function Fishing() {
                   </div>
                 ) : (
                   <div key={i} className="fishing-log-entry" style={{ background: getRarityColor(entry.fish?.weight || 30) }}>
-                    <span className="log-text-catch">🎣 {entry.nickname}님이 {entry.fish?.emoji} {entry.fish?.name}을(를) 낚았습니다!</span>
+                    <span className="log-text-catch">🎣 {entry.nickname}님이 {entry.fish?.emoji} {entry.fish?.name}을(를) 낚았습니다! {entry.sizeCm ? `(${entry.sizeCm}cm)` : ''}</span>
                   </div>
                 )
               ))}
