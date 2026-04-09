@@ -11,7 +11,7 @@ interface FishDef {
   key: string; name: string; emoji: string; location: string;
   weight: number; minTime: number; maxTime: number; price: number; exp: number; description?: string;
 }
-interface InventoryItem extends FishDef { count: number; }
+interface InventoryItem extends FishDef { inventoryId: number; caughtAt: string; }
 interface EncyclopediaEntry {
   key: string; name: string; emoji: string; location: string;
   caught: boolean; price: number | null; exp: number | null; description?: string;
@@ -22,6 +22,20 @@ const LOCATION_INFO: Record<string, { name: string; emoji: string; bg: string }>
   lake: { name: '호수', emoji: '🌊', bg: '#1a4a6a' },
   sea: { name: '바다', emoji: '🌅', bg: '#1a3a5a' },
 };
+
+function getRarityColor(weight: number): string {
+  if (weight <= 1) return '#c8a20088';    // legendary - gold
+  if (weight <= 5) return '#9b59b688';    // rare - purple
+  if (weight <= 15) return '#2980b988';   // uncommon - blue
+  return '#27ae6088';                      // common - green
+}
+
+function getRarityLabel(weight: number): string {
+  if (weight <= 1) return '전설';
+  if (weight <= 5) return '희귀';
+  if (weight <= 15) return '보통';
+  return '흔함';
+}
 
 export default function Fishing() {
   const { token, user, updateUser } = useAuth();
@@ -38,7 +52,7 @@ export default function Fishing() {
   const [showShop, setShowShop] = useState(false);
   const [shopTab, setShopTab] = useState<'buy' | 'sell'>('buy');
   const [shopInfo, setShopInfo] = useState<{ gold: number; level: number; currentRod: string; rods: any[] } | null>(null);
-  const [sellSelected, setSellSelected] = useState<Set<string>>(new Set());
+  const [sellSelected, setSellSelected] = useState<Set<number>>(new Set());
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [encyclopedia, setEncyclopedia] = useState<{ entries: EncyclopediaEntry[]; total: number; caught: number }>({ entries: [], total: 0, caught: 0 });
   const [fishDetail, setFishDetail] = useState<any>(null);
@@ -75,32 +89,28 @@ export default function Fishing() {
   };
 
   const sellFish = () => {
-    const items = Array.from(sellSelected);
-    if (items.length === 0) return;
-    // Sell all selected fish one type at a time
-    const promises = items.map((key) => {
-      const item = inventory.find((i) => i.key === key);
-      if (!item) return Promise.resolve(null);
-      return fetch(`${SERVER_URL}/api/fishing/sell`, { method: 'POST', headers, body: JSON.stringify({ fishKey: key, count: item.count }) }).then((r) => r.json());
-    });
-    Promise.all(promises).then((results) => {
-      const totals = results.filter(Boolean).reduce((acc: any, r: any) => ({ gold: (acc.gold || 0) + (r.totalGold || 0), exp: (acc.exp || 0) + (r.totalExp || 0), newGold: r.newGold, newExp: r.newExp, level: r.level, currentExp: r.currentExp, nextLevelExp: r.nextLevelExp }), {});
-      setMessage(`판매 완료! +${totals.gold} 골드 / +${totals.exp} EXP`);
-      if (totals.newExp) updateUser({ exp: totals.newExp, gold: totals.newGold, level: totals.level, currentExp: totals.currentExp, nextLevelExp: totals.nextLevelExp });
-      setSellSelected(new Set());
-      loadInventory();
-      loadShop();
-    });
+    const ids = Array.from(sellSelected);
+    if (ids.length === 0) return;
+    fetch(`${SERVER_URL}/api/fishing/sell`, { method: 'POST', headers, body: JSON.stringify({ inventoryIds: ids }) })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) { setMessage(data.error); return; }
+        setMessage(`판매 완료! +${data.totalGold} 골드 / +${data.totalExp} EXP`);
+        updateUser({ exp: data.newExp, gold: data.newGold, level: data.level, currentExp: data.currentExp, nextLevelExp: data.nextLevelExp });
+        setSellSelected(new Set());
+        loadInventory();
+        loadShop();
+      });
   };
 
-  const toggleSell = (key: string) => setSellSelected((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
-  const toggleAllSell = () => { if (sellSelected.size === inventory.length) setSellSelected(new Set()); else setSellSelected(new Set(inventory.map((i) => i.key))); };
+  const toggleSell = (id: number) => setSellSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAllSell = () => { if (sellSelected.size === inventory.length) setSellSelected(new Set()); else setSellSelected(new Set(inventory.map((i) => i.inventoryId))); };
 
   const getFishInfo = (key: string) => allFishData.find((f) => f.key === key);
 
-  const sellTotal = Array.from(sellSelected).reduce((acc, key) => {
-    const item = inventory.find((i) => i.key === key);
-    return { gold: acc.gold + (item?.price || 0) * (item?.count || 0), exp: acc.exp + (item?.exp || 0) * (item?.count || 0) };
+  const sellTotal = Array.from(sellSelected).reduce((acc, id) => {
+    const item = inventory.find((i) => i.inventoryId === id);
+    return { gold: acc.gold + (item?.price || 0), exp: acc.exp + (item?.exp || 0) };
   }, { gold: 0, exp: 0 });
 
   // ===== Location select =====
@@ -114,24 +124,29 @@ export default function Fishing() {
             <span className="gold-display">💰 {user?.gold || 0}</span>
             <button onClick={() => { loadShop(); loadInventory(); setShowShop(true); setShopTab('buy'); }} className="btn-secondary">🏪 상점</button>
             <button onClick={() => { loadEncyclopedia(); setShowEncyclopedia(true); }} className="btn-secondary">📖 도감</button>
-            <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">배낭 ({inventory.reduce((s, i) => s + i.count, 0)})</button>
+            <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">배낭 ({inventory.length})</button>
           </div>
         </header>
 
         {/* Inventory (view only) */}
         {showInventory && (
-          <div className="fishing-inventory">
-            <h3>배낭</h3>
-            {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
-              <div className="inventory-list">
-                {inventory.map((item) => (
-                  <div key={item.key} className="inventory-item" style={{ cursor: 'pointer' }} onClick={() => setFishDetail(item)}>
-                    <span className="inv-fish">{item.emoji} {item.name} x{item.count}</span>
-                    <span className="inv-info">💰{item.price} EXP{item.exp}</span>
-                  </div>
-                ))}
+          <div className="modal-overlay" onClick={() => setShowInventory(false)}>
+            <div className="modal inventory-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rules-header">
+                <h2>🎒 배낭 ({inventory.length})</h2>
+                <button onClick={() => setShowInventory(false)} className="btn-secondary btn-small">닫기</button>
               </div>
-            )}
+              {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
+                <div className="inventory-grid">
+                  {inventory.map((item) => (
+                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.weight) }} onClick={() => setFishDetail(item)}>
+                      <span className="inv-grid-emoji">{item.emoji}</span>
+                      <span className="inv-grid-name">{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -147,15 +162,21 @@ export default function Fishing() {
                 {Object.entries(LOCATION_INFO).map(([locKey, info]) => (
                   <div key={locKey} className="encyclopedia-section">
                     <h3>{info.emoji} {info.name}</h3>
-                    <div className="encyclopedia-grid">
-                      {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => (
-                        <div key={entry.key} className={`encyclopedia-item ${entry.caught ? 'caught' : 'unknown'}`}
-                          onClick={() => entry.caught && setFishDetail({ ...entry, description: getFishInfo(entry.key)?.description })}
-                          style={entry.caught ? { cursor: 'pointer' } : undefined}>
-                          <span className="enc-emoji">{entry.emoji}</span>
-                          <span className="enc-name">{entry.name}</span>
-                        </div>
-                      ))}
+                    <div className="inventory-grid">
+                      {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => {
+                        const fishInfo = getFishInfo(entry.key);
+                        const weight = fishInfo?.weight || 30;
+                        return (
+                          <div key={entry.key}
+                            className={`inv-grid-item ${!entry.caught ? 'enc-unknown' : ''}`}
+                            style={{ background: entry.caught ? getRarityColor(weight) : 'var(--bg-surface)' }}
+                            onClick={() => entry.caught && setFishDetail({ ...entry, weight, description: fishInfo?.description })}
+                          >
+                            <span className="inv-grid-emoji">{entry.emoji}</span>
+                            <span className="inv-grid-name">{entry.name}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -215,13 +236,18 @@ export default function Fishing() {
                   </div>
                   {inventory.length === 0 ? <p className="fishing-empty">판매할 물고기가 없습니다</p> : (
                     <>
-                      {inventory.map((item) => (
-                        <div key={item.key} className={`sell-item ${sellSelected.has(item.key) ? 'selected' : ''}`} onClick={() => toggleSell(item.key)}>
-                          <div className="sell-item-check">{sellSelected.has(item.key) ? '✓' : ''}</div>
-                          <span style={{ flex: 1 }}>{item.emoji} {item.name} x{item.count}</span>
-                          <span className="inv-info">💰{item.price * item.count} EXP{item.exp * item.count}</span>
-                        </div>
-                      ))}
+                      <div className="sell-grid">
+                        {inventory.map((item) => (
+                          <div key={item.inventoryId} className={`inv-grid-item sell-selectable ${sellSelected.has(item.inventoryId) ? 'sell-checked' : ''}`}
+                            style={{ background: getRarityColor(item.weight) }}
+                            onClick={() => toggleSell(item.inventoryId)}>
+                            <div className="sell-item-check">{sellSelected.has(item.inventoryId) ? '✓' : ''}</div>
+                            <span className="inv-grid-emoji">{item.emoji}</span>
+                            <span className="inv-grid-name">{item.name}</span>
+                            <span className="inv-grid-price">💰{item.price}</span>
+                          </div>
+                        ))}
+                      </div>
                       {sellSelected.size > 0 && (
                         <div className="sell-summary">
                           <span>합계: 💰{sellTotal.gold} / EXP {sellTotal.exp}</span>
@@ -264,7 +290,7 @@ export default function Fishing() {
         <div className="fishing-header-btns">
           <span className="gold-display">💰 {user?.gold || 0}</span>
           <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">
-            배낭 ({inventory.reduce((s, i) => s + i.count, 0)})
+            배낭 ({inventory.length})
           </button>
         </div>
       </header>

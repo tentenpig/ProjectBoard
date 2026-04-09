@@ -3236,6 +3236,84 @@ button {
 .inv-info { font-size: 12px; color: var(--text-muted); }
 .inv-actions { display: flex; gap: 4px; }
 
+/* Inventory modal grid */
+.inventory-modal {
+  max-width: 560px;
+  width: calc(100vw - 32px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.inventory-grid, .sell-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.inv-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.inv-grid-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.inv-grid-emoji { font-size: 28px; margin-bottom: 4px; }
+.inv-grid-name { font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.inv-grid-item.enc-unknown {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inv-grid-item.enc-unknown .inv-grid-name {
+  color: var(--text-muted);
+  text-shadow: none;
+}
+.inv-grid-price { font-size: 10px; color: rgba(255,255,255,0.9); }
+
+/* Sell grid */
+.sell-selectable {
+  cursor: pointer;
+}
+
+.sell-selectable .sell-item-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(0,0,0,0.2);
+}
+
+.sell-checked {
+  border-color: #fff !important;
+  box-shadow: 0 0 8px rgba(255,255,255,0.3);
+}
+
+.sell-checked .sell-item-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .fishing-header-btns { display: flex; gap: 6px; align-items: center; }
 
 .gold-display {
@@ -3441,9 +3519,20 @@ button {
   margin-left: auto;
 }
 
+.fish-detail-sub {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .fish-detail-location {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.fish-detail-rarity {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .fish-detail-desc {

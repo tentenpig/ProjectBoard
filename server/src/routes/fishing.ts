@@ -29,13 +29,13 @@ router.get('/inventory', async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT fish_key, COUNT(*) as count FROM fish_inventory WHERE user_id = ? AND sold = FALSE GROUP BY fish_key',
+      'SELECT id, fish_key, caught_at FROM fish_inventory WHERE user_id = ? AND sold = FALSE ORDER BY caught_at DESC',
       [user.id]
     );
 
     const inventory = rows.map((r) => {
       const fish = allFish.find((f) => f.key === r.fish_key);
-      return { ...fish, count: r.count };
+      return { ...fish, inventoryId: r.id, caughtAt: r.caught_at };
     });
 
     res.json({ inventory });
@@ -45,34 +45,35 @@ router.get('/inventory', async (req: Request, res: Response) => {
   }
 });
 
-// Sell fish
+// Sell fish by inventory IDs
 router.post('/sell', async (req: Request, res: Response) => {
   const user = authUser(req);
   if (!user) return res.status(401).json({ error: '인증이 필요합니다.' });
 
-  const { fishKey, count: sellCount } = req.body;
-  if (!fishKey || !sellCount || sellCount < 1) {
-    return res.status(400).json({ error: '잘못된 요청입니다.' });
+  const { inventoryIds } = req.body;
+  if (!inventoryIds || !Array.isArray(inventoryIds) || inventoryIds.length === 0) {
+    return res.status(400).json({ error: '판매할 물고기를 선택해주세요.' });
   }
 
-  const fish = allFish.find((f) => f.key === fishKey);
-  if (!fish) return res.status(400).json({ error: '알 수 없는 물고기입니다.' });
-
   try {
+    // Verify ownership
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id FROM fish_inventory WHERE user_id = ? AND fish_key = ? AND sold = FALSE LIMIT ?',
-      [user.id, fishKey, sellCount]
+      'SELECT id, fish_key FROM fish_inventory WHERE user_id = ? AND id IN (?) AND sold = FALSE',
+      [user.id, inventoryIds]
     );
 
-    if (rows.length < sellCount) {
-      return res.status(400).json({ error: '보유 수량이 부족합니다.' });
-    }
+    if (rows.length === 0) return res.status(400).json({ error: '판매할 물고기가 없습니다.' });
 
     const ids = rows.map((r) => r.id);
     await pool.query('UPDATE fish_inventory SET sold = TRUE WHERE id IN (?)', [ids]);
 
-    const totalExp = fish.exp * sellCount;
-    const totalGold = fish.price * sellCount;
+    // Calculate totals from sold items
+    let totalExp = 0, totalGold = 0;
+    for (const row of rows) {
+      const fish = allFish.find((f) => f.key === row.fish_key);
+      if (fish) { totalExp += fish.exp; totalGold += fish.price; }
+    }
+
     await pool.query('UPDATE users SET exp = exp + ?, gold = gold + ? WHERE id = ?', [totalExp, totalGold, user.id]);
 
     const [userRows] = await pool.query<RowDataPacket[]>('SELECT exp, gold, nickname FROM users WHERE id = ?', [user.id]);
@@ -81,7 +82,7 @@ router.post('/sell', async (req: Request, res: Response) => {
     updateLeaderboard(user.id, userRows[0].nickname, newExp).catch(() => {});
     const levelInfo = calculateLevel(newExp);
 
-    res.json({ soldCount: sellCount, totalExp, totalGold, newExp, newGold, ...levelInfo });
+    res.json({ soldCount: ids.length, totalExp, totalGold, newExp, newGold, ...levelInfo });
   } catch (err) {
     console.error('Sell error:', err);
     res.status(500).json({ error: '서버 오류' });

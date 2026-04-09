@@ -3,6 +3,7 @@ interface FishInfo {
   name: string;
   emoji: string;
   location: string;
+  weight?: number;
   price?: number | null;
   exp?: number | null;
   description?: string;
@@ -15,7 +16,16 @@ const LOCATION_NAMES: Record<string, string> = {
   sea: '🌅 바다',
 };
 
+function getRarityInfo(weight: number): { label: string; color: string } {
+  if (weight <= 1) return { label: '전설', color: '#c8a200' };
+  if (weight <= 5) return { label: '희귀', color: '#9b59b6' };
+  if (weight <= 15) return { label: '보통', color: '#2980b9' };
+  return { label: '흔함', color: '#27ae60' };
+}
+
 export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose: () => void }) {
+  const rarity = fish.weight != null ? getRarityInfo(fish.weight) : null;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal fish-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -23,7 +33,10 @@ export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose:
           <span className="fish-detail-emoji">{fish.emoji}</span>
           <div>
             <h2>{fish.name}</h2>
-            <span className="fish-detail-location">{LOCATION_NAMES[fish.location] || fish.location}</span>
+            <div className="fish-detail-sub">
+              <span className="fish-detail-location">{LOCATION_NAMES[fish.location] || fish.location}</span>
+              {rarity && <span className="fish-detail-rarity" style={{ color: rarity.color }}>[ {rarity.label} ]</span>}
+            </div>
           </div>
           <button onClick={onClose} className="btn-secondary btn-small">닫기</button>
         </div>
