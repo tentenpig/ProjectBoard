@@ -46,7 +46,7 @@ export default function Fishing() {
   const [casting, setCasting] = useState(false);
   const [catchTime, setCatchTime] = useState(0);
   const [lastCatch, setLastCatch] = useState<FishDef | null>(null);
-  const [fishLog, setFishLog] = useState<{ nickname: string; fish: FishDef; timestamp: number }[]>([]);
+  const [fishLog, setFishLog] = useState<{ type: 'catch' | 'system'; nickname?: string; fish?: FishDef; text?: string; timestamp: number }[]>([]);
   const [fishingUsers, setFishingUsers] = useState<{ id: number; nickname: string }[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [showInventory, setShowInventory] = useState(false);
@@ -72,11 +72,26 @@ export default function Fishing() {
   useEffect(() => {
     if (!socket) return;
     socket.on('fishing:counts', (c: Record<string, number>) => setCounts(c));
-    socket.on('fishing:users', (u: { id: number; nickname: string }[]) => setFishingUsers(u));
+    socket.on('fishing:users', (u: { id: number; nickname: string }[]) => {
+      setFishingUsers((prev) => {
+        // Detect joins/leaves
+        const prevIds = new Set(prev.map((p) => p.id));
+        const newIds = new Set(u.map((p) => p.id));
+        const joined = u.filter((p) => !prevIds.has(p.id));
+        const left = prev.filter((p) => !newIds.has(p.id));
+        for (const p of joined) {
+          setFishLog((logs) => [{ type: 'system', text: `${p.nickname}님이 낚시터에 입장했습니다.`, timestamp: Date.now() }, ...logs.slice(0, 49)]);
+        }
+        for (const p of left) {
+          setFishLog((logs) => [{ type: 'system', text: `${p.nickname}님이 낚시터를 떠났습니다.`, timestamp: Date.now() }, ...logs.slice(0, 49)]);
+        }
+        return u;
+      });
+    });
     socket.on('fishing:cast', (data: { catchTime: number }) => { setCasting(true); setCatchTime(Date.now() + data.catchTime); setLastCatch(null); });
     socket.on('fishing:caught', (data: { fish: FishDef }) => { setCasting(false); setLastCatch(data.fish); loadInventory(); });
     socket.on('fishing:log', (entry: { nickname: string; fish: FishDef; timestamp: number }) => {
-      setFishLog((prev) => [entry, ...prev.slice(0, 49)]);
+      setFishLog((prev) => [{ type: 'catch' as const, ...entry }, ...prev.slice(0, 49)]);
     });
     socket.emit('fishing:get_counts');
     return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); };
@@ -334,6 +349,7 @@ export default function Fishing() {
         <h1>{locInfo.emoji} {locInfo.name} 낚시터</h1>
         <div className="fishing-header-btns">
           <span className="gold-display">💰 {user?.gold || 0}</span>
+          <button onClick={() => { loadEncyclopedia(); setShowEncyclopedia(true); }} className="btn-secondary">📖 도감</button>
           <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">
             배낭 ({inventory.length})
           </button>
@@ -393,12 +409,15 @@ export default function Fishing() {
               {fishLog.length === 0 ? (
                 <p className="fishing-log-empty">아직 이력이 없습니다</p>
               ) : fishLog.map((entry, i) => (
-                <div key={i} className="fishing-log-entry">
-                  <span className="log-fish">{entry.fish.emoji}</span>
-                  <span className="log-name">{entry.nickname}</span>
-                  <span className="log-text">{entry.fish.name}</span>
-                  <span className="log-value">💰{entry.fish.price}</span>
-                </div>
+                entry.type === 'system' ? (
+                  <div key={i} className="fishing-log-entry log-system">
+                    <span className="log-text-system">{entry.text}</span>
+                  </div>
+                ) : (
+                  <div key={i} className="fishing-log-entry" style={{ background: getRarityColor(entry.fish?.weight || 30) }}>
+                    <span className="log-text-catch">🎣 {entry.nickname}님이 {entry.fish?.emoji} {entry.fish?.name}을(를) 낚았습니다!</span>
+                  </div>
+                )
               ))}
             </div>
           </div>
