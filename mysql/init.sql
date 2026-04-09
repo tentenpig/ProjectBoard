@@ -3,8 +3,15 @@ CREATE TABLE IF NOT EXISTS users (
     nickname VARCHAR(20) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     exp INT NOT NULL DEFAULT 0,
+    gold INT NOT NULL DEFAULT 0,
     last_login_reward DATE DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_equipment (
+    user_id INT PRIMARY KEY,
+    rod_key VARCHAR(50) NOT NULL DEFAULT 'basic_rod',
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS fishing_state (

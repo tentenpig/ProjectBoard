@@ -61,7 +61,7 @@ import {
   getPlayerView as getFlickPlayerView,
   getSpectatorView as getFlickSpectatorView,
 } from '../games/flick/logic';
-import { pickFish } from '../routes/fishing';
+import { pickFish, getRodBonus } from '../routes/fishing';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -1663,9 +1663,17 @@ export function setupSocket(io: Server) {
     // Fishing auto-loop
     const fishingTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
-    function startFishingLoop(userId: number, nickname: string, location: string) {
+    async function startFishingLoop(userId: number, nickname: string, location: string) {
       stopFishingLoop(userId);
-      const fish = pickFish(location);
+
+      // Get rod bonus
+      let rodBonus = 0;
+      try {
+        const [eqRows] = await pool.query<any[]>('SELECT rod_key FROM user_equipment WHERE user_id = ?', [userId]);
+        if (eqRows.length > 0) rodBonus = getRodBonus(eqRows[0].rod_key);
+      } catch {}
+
+      const fish = pickFish(location, rodBonus);
       const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
 
       socket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });

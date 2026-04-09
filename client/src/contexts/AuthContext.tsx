@@ -4,6 +4,7 @@ interface User {
   id: number;
   nickname: string;
   exp: number;
+  gold: number;
   level: number;
   currentExp: number;
   nextLevelExp: number;

@@ -25,7 +25,7 @@ const LOCATION_INFO: Record<string, { name: string; emoji: string; bg: string }>
 };
 
 export default function Fishing() {
-  const { token, updateUser } = useAuth();
+  const { token, user, updateUser } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
 
@@ -35,6 +35,8 @@ export default function Fishing() {
   const [lastCatch, setLastCatch] = useState<FishDef | null>(null);
   const [catches, setCatches] = useState<FishDef[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [showShop, setShowShop] = useState(false);
+  const [shopInfo, setShopInfo] = useState<{ gold: number; level: number; currentRod: string; rods: any[] } | null>(null);
   const [showInventory, setShowInventory] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [encyclopedia, setEncyclopedia] = useState<{ entries: EncyclopediaEntry[]; total: number; caught: number }>({ entries: [], total: 0, caught: 0 });
@@ -101,6 +103,25 @@ export default function Fishing() {
 
   useEffect(() => { loadInventory(); }, []);
 
+  const loadShop = () => {
+    fetch(`${SERVER_URL}/api/shop/info`, { headers })
+      .then((r) => r.json())
+      .then((data) => setShopInfo(data));
+  };
+
+  const buyRod = (rodKey: string) => {
+    fetch(`${SERVER_URL}/api/shop/buy-rod`, {
+      method: 'POST', headers, body: JSON.stringify({ rodKey }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) { setMessage(data.error); return; }
+        setMessage('낚시대를 구매했습니다!');
+        updateUser({ gold: data.newGold } as any);
+        loadShop();
+      });
+  };
+
   const enterLocation = (loc: string) => {
     setLocation(loc);
     setCasting(false);
@@ -125,8 +146,8 @@ export default function Fishing() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) { setMessage(data.error); return; }
-        setMessage(`판매 완료! +${data.totalExp} EXP`);
-        updateUser({ exp: data.newExp, level: data.level, currentExp: data.currentExp, nextLevelExp: data.nextLevelExp });
+        setMessage(`판매 완료! +${data.totalGold} 골드 / +${data.totalExp} EXP`);
+        updateUser({ exp: data.newExp, gold: data.newGold, level: data.level, currentExp: data.currentExp, nextLevelExp: data.nextLevelExp });
         loadInventory();
       });
   };
@@ -139,6 +160,8 @@ export default function Fishing() {
           <button onClick={() => navigate('/lobby')} className="btn-secondary">← 로비</button>
           <h1>🎣 낚시터</h1>
           <div className="fishing-header-btns">
+            <span className="gold-display">💰 {user?.gold || 0}</span>
+            <button onClick={() => { loadShop(); setShowShop(true); }} className="btn-secondary">🏪 상점</button>
             <button onClick={() => { loadEncyclopedia(); setShowEncyclopedia(true); }} className="btn-secondary">📖 도감</button>
             <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">
               배낭 ({inventory.reduce((s, i) => s + i.count, 0)})
@@ -147,6 +170,49 @@ export default function Fishing() {
         </header>
 
         {showInventory && <InventoryPanel inventory={inventory} onSell={sellFish} message={message} />}
+
+        {showShop && shopInfo && (
+          <div className="modal-overlay" onClick={() => setShowShop(false)}>
+            <div className="modal shop-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rules-header">
+                <h2>🏪 상점</h2>
+                <button onClick={() => setShowShop(false)} className="btn-secondary btn-small">닫기</button>
+              </div>
+              <p className="shop-gold">💰 보유 골드: {shopInfo.gold} | Lv.{shopInfo.level}</p>
+              <p className="shop-current">현재 장비: {shopInfo.rods.find((r) => r.key === shopInfo.currentRod)?.emoji} {shopInfo.rods.find((r) => r.key === shopInfo.currentRod)?.name}</p>
+              <div className="shop-list">
+                {shopInfo.rods.map((rod) => {
+                  const isOwned = shopInfo.currentRod === rod.key;
+                  const isDowngrade = shopInfo.rods.findIndex((r) => r.key === shopInfo.currentRod) >= shopInfo.rods.findIndex((r) => r.key === rod.key);
+                  const canAfford = shopInfo.gold >= rod.price;
+                  const canLevel = shopInfo.level >= rod.level;
+                  return (
+                    <div key={rod.key} className={`shop-item ${isOwned ? 'shop-owned' : ''}`}>
+                      <div className="shop-item-info">
+                        <span className="shop-item-emoji">{rod.emoji}</span>
+                        <div>
+                          <div className="shop-item-name">{rod.name} {isOwned && <span className="shop-equipped">장착 중</span>}</div>
+                          <div className="shop-item-desc">{rod.description}</div>
+                          <div className="shop-item-meta">Lv.{rod.level} 이상 | {rod.price > 0 ? `💰 ${rod.price}` : '무료'}</div>
+                        </div>
+                      </div>
+                      {!isOwned && !isDowngrade && (
+                        <button
+                          onClick={() => buyRod(rod.key)}
+                          className="btn-primary btn-small"
+                          disabled={!canAfford || !canLevel}
+                        >
+                          {!canLevel ? `Lv.${rod.level} 필요` : !canAfford ? '골드 부족' : '구매'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {message && <p className="fishing-message">{message}</p>}
+            </div>
+          </div>
+        )}
 
         {showEncyclopedia && (
           <div className="modal-overlay" onClick={() => setShowEncyclopedia(false)}>

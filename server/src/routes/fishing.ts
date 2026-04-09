@@ -72,14 +72,16 @@ router.post('/sell', async (req: Request, res: Response) => {
     await pool.query('UPDATE fish_inventory SET sold = TRUE WHERE id IN (?)', [ids]);
 
     const totalExp = fish.exp * sellCount;
-    await pool.query('UPDATE users SET exp = exp + ? WHERE id = ?', [totalExp, user.id]);
+    const totalGold = fish.price * sellCount;
+    await pool.query('UPDATE users SET exp = exp + ?, gold = gold + ? WHERE id = ?', [totalExp, totalGold, user.id]);
 
-    const [userRows] = await pool.query<RowDataPacket[]>('SELECT exp, nickname FROM users WHERE id = ?', [user.id]);
+    const [userRows] = await pool.query<RowDataPacket[]>('SELECT exp, gold, nickname FROM users WHERE id = ?', [user.id]);
     const newExp = userRows[0].exp;
+    const newGold = userRows[0].gold;
     updateLeaderboard(user.id, userRows[0].nickname, newExp).catch(() => {});
     const levelInfo = calculateLevel(newExp);
 
-    res.json({ soldCount: sellCount, totalExp, newExp, ...levelInfo });
+    res.json({ soldCount: sellCount, totalExp, totalGold, newExp, newGold, ...levelInfo });
   } catch (err) {
     console.error('Sell error:', err);
     res.status(500).json({ error: '서버 오류' });
@@ -124,13 +126,27 @@ export default router;
 
 // Export for socket usage
 export { allFish, FishDef };
-export function pickFish(location: string): FishDef {
+export function pickFish(location: string, rarityBonus: number = 0): FishDef {
   const locationFish = allFish.filter((f) => f.location === location);
-  const totalWeight = locationFish.reduce((s, f) => s + f.weight, 0);
+
+  // Apply rarity bonus: boost weight of rarer fish (lower base weight)
+  const adjustedFish = locationFish.map((f) => {
+    if (rarityBonus <= 0 || f.weight >= 20) return { fish: f, weight: f.weight };
+    // Rare fish get weight multiplied by bonus
+    return { fish: f, weight: f.weight * (1 + rarityBonus) };
+  });
+
+  const totalWeight = adjustedFish.reduce((s, f) => s + f.weight, 0);
   let roll = Math.random() * totalWeight;
-  for (const fish of locationFish) {
-    roll -= fish.weight;
+  for (const { fish, weight } of adjustedFish) {
+    roll -= weight;
     if (roll <= 0) return fish;
   }
   return locationFish[locationFish.length - 1];
+}
+
+export function getRodBonus(rodKey: string): number {
+  const shopData = require('../config/shop.json');
+  const rod = shopData.rods.find((r: any) => r.key === rodKey);
+  return rod?.rarityBonus || 0;
 }

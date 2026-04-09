@@ -1,0 +1,58 @@
+{
+  "rods": [
+    {
+      "key": "basic_rod",
+      "name": "기본 낚시대",
+      "emoji": "🎣",
+      "description": "누구나 가지고 있는 기본 낚시대",
+      "price": 0,
+      "rarityBonus": 0,
+      "level": 1
+    },
+    {
+      "key": "bamboo_rod",
+      "name": "대나무 낚시대",
+      "emoji": "🎋",
+      "description": "가볍고 튼튼한 대나무 낚시대. 보통 물고기가 조금 더 잘 잡힌다.",
+      "price": 200,
+      "rarityBonus": 1.2,
+      "level": 3
+    },
+    {
+      "key": "carbon_rod",
+      "name": "카본 낚시대",
+      "emoji": "⚙️",
+      "description": "현대 기술의 카본 소재. 희귀한 물고기를 만날 확률이 높아진다.",
+      "price": 800,
+      "rarityBonus": 1.5,
+      "level": 5
+    },
+    {
+      "key": "titanium_rod",
+      "name": "티타늄 낚시대",
+      "emoji": "🔩",
+      "description": "최고급 티타늄 합금. 희귀한 물고기가 훨씬 잘 잡힌다.",
+      "price": 2500,
+      "rarityBonus": 2.0,
+      "level": 10
+    },
+    {
+      "key": "golden_rod",
+      "name": "황금 낚시대",
+      "emoji": "👑",
+      "description": "전설적인 황금 낚시대. 전설의 물고기를 노릴 수 있다.",
+      "price": 8000,
+      "rarityBonus": 3.0,
+      "level": 20
+    },
+    {
+      "key": "dragon_rod",
+      "name": "용왕의 낚시대",
+      "emoji": "🐉",
+      "description": "용왕이 하사한 전설의 낚시대. 모든 물고기가 이끌려 온다.",
+      "price": 25000,
+      "rarityBonus": 5.0,
+      "level": 35
+    }
+  ]
+}
