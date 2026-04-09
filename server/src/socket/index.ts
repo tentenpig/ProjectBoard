@@ -1706,9 +1706,12 @@ export function setupSocket(io: Server) {
           socket.emit('fishing:caught', { fish });
 
           // Broadcast to location chat
-          const catchMsg = { nickname: `🎣 ${nickname}`, text: `${fish.emoji} ${fish.name}을(를) 낚았습니다!`, timestamp: Date.now() };
-          addChatMessage(`fishing:${location}`, catchMsg);
-          io.to(`fishing:${location}`).emit('chat:message', catchMsg);
+          // Send to fishing log (separate from chat)
+          io.to(`fishing:${location}`).emit('fishing:log', {
+            nickname,
+            fish: { key: fish.key, name: fish.name, emoji: fish.emoji, price: fish.price, exp: fish.exp, weight: fish.weight },
+            timestamp: Date.now(),
+          });
 
           // Auto re-cast
           startFishingLoop(userId, nickname, location);
@@ -1737,7 +1740,7 @@ export function setupSocket(io: Server) {
       broadcastFishingCounts(io);
       broadcastFishingUsers(io, location);
       // Start auto-fishing
-      startFishingLoop(user.id, user.nickname, location);
+      startFishingLoop(user.id, user.nickname, location).catch((err) => console.error('Fishing loop start error:', err));
     });
 
     socket.on('fishing:leave', () => {

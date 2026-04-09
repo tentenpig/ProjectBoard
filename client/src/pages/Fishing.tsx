@@ -46,7 +46,7 @@ export default function Fishing() {
   const [casting, setCasting] = useState(false);
   const [catchTime, setCatchTime] = useState(0);
   const [lastCatch, setLastCatch] = useState<FishDef | null>(null);
-  const [catches, setCatches] = useState<FishDef[]>([]);
+  const [fishLog, setFishLog] = useState<{ nickname: string; fish: FishDef; timestamp: number }[]>([]);
   const [fishingUsers, setFishingUsers] = useState<{ id: number; nickname: string }[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [showInventory, setShowInventory] = useState(false);
@@ -74,9 +74,12 @@ export default function Fishing() {
     socket.on('fishing:counts', (c: Record<string, number>) => setCounts(c));
     socket.on('fishing:users', (u: { id: number; nickname: string }[]) => setFishingUsers(u));
     socket.on('fishing:cast', (data: { catchTime: number }) => { setCasting(true); setCatchTime(Date.now() + data.catchTime); setLastCatch(null); });
-    socket.on('fishing:caught', (data: { fish: FishDef }) => { setCasting(false); setLastCatch(data.fish); setCatches((p) => [data.fish, ...p.slice(0, 19)]); loadInventory(); });
+    socket.on('fishing:caught', (data: { fish: FishDef }) => { setCasting(false); setLastCatch(data.fish); loadInventory(); });
+    socket.on('fishing:log', (entry: { nickname: string; fish: FishDef; timestamp: number }) => {
+      setFishLog((prev) => [entry, ...prev.slice(0, 49)]);
+    });
     socket.emit('fishing:get_counts');
-    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); };
+    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); };
   }, [socket]);
 
   const loadInventory = () => fetch(`${SERVER_URL}/api/fishing/inventory`, { headers }).then((r) => r.json()).then((d) => setInventory(d.inventory || []));
@@ -89,8 +92,8 @@ export default function Fishing() {
     fetch(`${SERVER_URL}/api/fishing-ranking/top`).then((r) => r.json()).then((d) => setFishRanking(Array.isArray(d) ? d : []));
   };
 
-  const enterLocation = (loc: string) => { setLocation(loc); setCasting(false); setLastCatch(null); setCatches([]); setMessage(''); socket?.emit('fishing:join', loc); };
-  const leaveLocation = () => { socket?.emit('fishing:leave'); setLocation(null); setCasting(false); setLastCatch(null); setCatches([]); setFishingUsers([]); };
+  const enterLocation = (loc: string) => { setLocation(loc); setCasting(false); setLastCatch(null); setFishLog([]); setMessage(''); socket?.emit('fishing:join', loc); };
+  const leaveLocation = () => { socket?.emit('fishing:leave'); setLocation(null); setCasting(false); setLastCatch(null); setFishLog([]); setFishingUsers([]); };
 
   const buyRod = (rodKey: string) => {
     fetch(`${SERVER_URL}/api/shop/buy-rod`, { method: 'POST', headers, body: JSON.stringify({ rodKey }) })
@@ -368,19 +371,37 @@ export default function Fishing() {
       )}
 
       <div className="fishing-main">
-        <div className="fishing-scene" style={{ background: locInfo.bg }}>
-          {casting ? (
-            <div className="fishing-waiting">
-              <div className="fishing-bobber">🎣</div>
-              <p>입질을 기다리는 중...</p>
-              <p className="fishing-timer">. . .</p>
+        <div className="fishing-left">
+          <div className="fishing-scene" style={{ background: locInfo.bg }}>
+            {casting ? (
+              <div className="fishing-waiting">
+                <div className="fishing-bobber">🎣</div>
+                <p>입질을 기다리는 중...</p>
+                <p className="fishing-timer">. . .</p>
+              </div>
+            ) : (
+              <div className="fishing-waiting">
+                <div className="fishing-bobber">🎣</div>
+                <p>낚시를 준비하는 중...</p>
+              </div>
+            )}
+          </div>
+
+          <div className="fishing-log-panel">
+            <div className="fishing-log-header">낚시 이력</div>
+            <div className="fishing-log-list">
+              {fishLog.length === 0 ? (
+                <p className="fishing-log-empty">아직 이력이 없습니다</p>
+              ) : fishLog.map((entry, i) => (
+                <div key={i} className="fishing-log-entry">
+                  <span className="log-fish">{entry.fish.emoji}</span>
+                  <span className="log-name">{entry.nickname}</span>
+                  <span className="log-text">{entry.fish.name}</span>
+                  <span className="log-value">💰{entry.fish.price}</span>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="fishing-waiting">
-              <div className="fishing-bobber">🎣</div>
-              <p>낚시를 준비하는 중...</p>
-            </div>
-          )}
+          </div>
         </div>
 
         <div className="fishing-chat">

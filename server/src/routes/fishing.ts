@@ -5,6 +5,7 @@ import { RowDataPacket } from 'mysql2';
 import { calculateLevel } from '../config/level';
 import { updateLeaderboard } from '../config/redis';
 import fishData from '../config/fish.json';
+import shopData from '../config/shop.json';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -148,7 +149,6 @@ export function pickFish(location: string, rarityBonus: number = 0): FishDef {
 }
 
 export function getRodBonus(rodKey: string): number {
-  const shopData = require('../config/shop.json');
-  const rod = shopData.rods.find((r: any) => r.key === rodKey);
+  const rod = (shopData.rods as any[]).find((r) => r.key === rodKey);
   return rod?.rarityBonus || 0;
 }
