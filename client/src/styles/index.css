@@ -3324,6 +3324,163 @@ button {
   margin-top: 2px;
 }
 
+/* Shop tabs */
+.shop-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--border-light);
+}
+
+.shop-tab {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.shop-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Sell tab */
+.sell-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.sell-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sell-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+}
+
+.sell-item:hover {
+  background: var(--bg-hover);
+}
+
+.sell-item.selected {
+  background: rgba(174, 86, 48, 0.1);
+  border: 1px solid var(--accent);
+}
+
+.sell-item-check {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.sell-item.selected .sell-item-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.sell-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border-radius: 6px;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Fish detail modal */
+.fish-detail-modal {
+  max-width: 380px;
+  width: calc(100vw - 32px);
+}
+
+.fish-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fish-detail-emoji {
+  font-size: 40px;
+}
+
+.fish-detail-header h2 {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.fish-detail-header .btn-secondary {
+  margin-left: auto;
+}
+
+.fish-detail-location {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fish-detail-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.fish-detail-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.fish-stat {
+  flex: 1;
+  text-align: center;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.fish-stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.fish-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .fishing-auto-msg {
   font-size: 13px;
   opacity: 0.7;

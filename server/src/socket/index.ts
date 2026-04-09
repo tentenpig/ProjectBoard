@@ -1690,7 +1690,7 @@ export function setupSocket(io: Server) {
           socket.emit('fishing:caught', { fish });
 
           // Broadcast to location chat
-          const catchMsg = { nickname: `🎣 ${nickname}`, text: `${fish.emoji} ${fish.name}을(를) 낚았습니다!`, timestamp: Date.now(), system: true };
+          const catchMsg = { nickname: `🎣 ${nickname}`, text: `${fish.emoji} ${fish.name}을(를) 낚았습니다!`, timestamp: Date.now() };
           addChatMessage(`fishing:${location}`, catchMsg);
           io.to(`fishing:${location}`).emit('chat:message', catchMsg);
 

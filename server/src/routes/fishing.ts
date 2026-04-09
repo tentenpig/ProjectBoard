@@ -108,6 +108,7 @@ router.get('/encyclopedia', async (req: Request, res: Response) => {
       caught: caughtKeys.has(f.key),
       price: caughtKeys.has(f.key) ? f.price : null,
       exp: caughtKeys.has(f.key) ? f.exp : null,
+      description: caughtKeys.has(f.key) ? (f as any).description : null,
     }));
 
     res.json({ encyclopedia, totalSpecies: allFish.length, caughtSpecies: caughtKeys.size });
