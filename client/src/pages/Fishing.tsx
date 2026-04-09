@@ -120,6 +120,11 @@ export default function Fishing() {
       .then((r) => r.json()).then((d) => { if (d.error) { setMessage(d.error); return; } setMessage('낚시대를 구매했습니다!'); updateUser({ gold: d.newGold } as any); loadShop(); });
   };
 
+  const equipRod = (rodKey: string) => {
+    fetch(`${SERVER_URL}/api/shop/equip-rod`, { method: 'POST', headers, body: JSON.stringify({ rodKey }) })
+      .then((r) => r.json()).then((d) => { if (d.error) { setMessage(d.error); return; } setMessage('낚시대를 장착했습니다!'); loadShop(); });
+  };
+
   const sellFish = () => {
     const ids = Array.from(sellSelected);
     if (ids.length === 0) return;
@@ -268,19 +273,26 @@ export default function Fishing() {
                 <div className="shop-list">
                   <p className="shop-current">장착: {shopInfo.rods.find((r) => r.key === shopInfo.currentRod)?.emoji} {shopInfo.rods.find((r) => r.key === shopInfo.currentRod)?.name}</p>
                   {shopInfo.rods.map((rod) => {
-                    const isOwned = shopInfo.currentRod === rod.key;
-                    const isDowngrade = shopInfo.rods.findIndex((r) => r.key === shopInfo.currentRod) >= shopInfo.rods.findIndex((r) => r.key === rod.key);
+                    const owned = (shopInfo.ownedRods || []).includes(rod.key);
+                    const equipped = shopInfo.currentRod === rod.key;
                     return (
-                      <div key={rod.key} className={`shop-item ${isOwned ? 'shop-owned' : ''}`}>
+                      <div key={rod.key} className={`shop-item ${equipped ? 'shop-owned' : ''}`}>
                         <div className="shop-item-info">
                           <span className="shop-item-emoji">{rod.emoji}</span>
                           <div>
-                            <div className="shop-item-name">{rod.name} {isOwned && <span className="shop-equipped">장착 중</span>}</div>
+                            <div className="shop-item-name">
+                              {rod.name}
+                              {equipped && <span className="shop-equipped">장착 중</span>}
+                              {owned && !equipped && <span className="shop-owned-badge">보유</span>}
+                            </div>
                             <div className="shop-item-desc">{rod.description}</div>
                             <div className="shop-item-meta">Lv.{rod.level} | {rod.price > 0 ? `💰 ${rod.price}` : '무료'}</div>
                           </div>
                         </div>
-                        {!isOwned && !isDowngrade && (
+                        {!equipped && owned && (
+                          <button onClick={() => equipRod(rod.key)} className="btn-secondary btn-small">장착</button>
+                        )}
+                        {!owned && (
                           <button onClick={() => buyRod(rod.key)} className="btn-primary btn-small" disabled={shopInfo.gold < rod.price || shopInfo.level < rod.level}>
                             {shopInfo.level < rod.level ? `Lv.${rod.level}` : shopInfo.gold < rod.price ? '부족' : '구매'}
                           </button>

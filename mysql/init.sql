@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS user_equipment (
     user_id INT PRIMARY KEY,
     rod_key VARCHAR(50) NOT NULL DEFAULT 'basic_rod',
+    owned_rods TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
