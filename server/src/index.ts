@@ -6,6 +6,7 @@ import authRouter from './routes/auth';
 import rankingRouter from './routes/ranking';
 import fishingRouter from './routes/fishing';
 import shopRouter from './routes/shop';
+import fishingRankingRouter from './routes/fishingRanking';
 import { setupSocket } from './socket/index';
 import pool from './config/database';
 import { syncLeaderboardFromDB } from './config/redis';
@@ -27,6 +28,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/ranking', rankingRouter);
 app.use('/api/fishing', fishingRouter);
 app.use('/api/shop', shopRouter);
+app.use('/api/fishing-ranking', fishingRankingRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

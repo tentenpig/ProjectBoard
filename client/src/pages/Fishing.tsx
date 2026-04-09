@@ -57,6 +57,8 @@ export default function Fishing() {
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [encyclopedia, setEncyclopedia] = useState<{ entries: EncyclopediaEntry[]; total: number; caught: number }>({ entries: [], total: 0, caught: 0 });
   const [fishDetail, setFishDetail] = useState<any>(null);
+  const [showFishRanking, setShowFishRanking] = useState(false);
+  const [fishRanking, setFishRanking] = useState<{ rank: number; userId: number; nickname: string; totalCount: number }[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({ river: 0, lake: 0, sea: 0 });
   const [message, setMessage] = useState('');
   const [allFishData, setAllFishData] = useState<FishDef[]>([]);
@@ -82,6 +84,10 @@ export default function Fishing() {
   const loadShop = () => fetch(`${SERVER_URL}/api/shop/info`, { headers }).then((r) => r.json()).then((d) => setShopInfo(d));
 
   useEffect(() => { loadInventory(); }, []);
+
+  const loadFishRanking = () => {
+    fetch(`${SERVER_URL}/api/fishing-ranking/top`).then((r) => r.json()).then((d) => setFishRanking(Array.isArray(d) ? d : []));
+  };
 
   const enterLocation = (loc: string) => { setLocation(loc); setCasting(false); setLastCatch(null); setCatches([]); setMessage(''); socket?.emit('fishing:join', loc); };
   const leaveLocation = () => { socket?.emit('fishing:leave'); setLocation(null); setCasting(false); setLastCatch(null); setCatches([]); setFishingUsers([]); };
@@ -125,6 +131,7 @@ export default function Fishing() {
           <h1>🎣 낚시터</h1>
           <div className="fishing-header-btns">
             <span className="gold-display">💰 {user?.gold || 0}</span>
+            <button onClick={() => { loadFishRanking(); setShowFishRanking(true); }} className="btn-secondary">🏆 랭킹</button>
             <button onClick={() => { loadShop(); loadInventory(); setShowShop(true); setShopTab('buy'); }} className="btn-secondary">🏪 상점</button>
             <button onClick={() => { loadEncyclopedia(); setShowEncyclopedia(true); }} className="btn-secondary">📖 도감</button>
             <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">배낭 ({inventory.length})</button>
@@ -183,6 +190,38 @@ export default function Fishing() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fishing Ranking */}
+        {showFishRanking && (
+          <div className="modal-overlay" onClick={() => setShowFishRanking(false)}>
+            <div className="modal encyclopedia-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rules-header">
+                <h2>🏆 낚시 랭킹</h2>
+                <button onClick={() => setShowFishRanking(false)} className="btn-secondary btn-small">닫기</button>
+              </div>
+              <div className="ranking-table-wrap" style={{ maxHeight: '60vh', overflow: 'auto' }}>
+                <table className="ranking-table">
+                  <thead>
+                    <tr><th>순위</th><th>닉네임</th><th>잡은 수</th></tr>
+                  </thead>
+                  <tbody>
+                    {fishRanking.length === 0 ? (
+                      <tr><td colSpan={3} style={{ textAlign: 'center', color: '#888' }}>아직 데이터가 없습니다</td></tr>
+                    ) : fishRanking.map((r) => (
+                      <tr key={r.userId} className={r.userId === user?.id ? 'ranking-me' : ''}>
+                        <td className="rank-col">
+                          {r.rank <= 3 ? <span className={`rank-medal rank-${r.rank}`}>{r.rank}</span> : r.rank}
+                        </td>
+                        <td>{r.nickname} {r.userId === user?.id ? '(나)' : ''}</td>
+                        <td>{r.totalCount}마리</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
