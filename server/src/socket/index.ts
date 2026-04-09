@@ -370,6 +370,22 @@ function broadcastFishingCounts(io: Server) {
   io.emit('fishing:counts', counts);
 }
 
+function broadcastFishingUsers(io: Server, location: string) {
+  const roomName = `fishing:${location}`;
+  const room = io.sockets.adapter.rooms.get(roomName);
+  if (!room) return;
+
+  const users: { id: number; nickname: string }[] = [];
+  for (const socketId of room) {
+    const s = io.sockets.sockets.get(socketId);
+    if (s) {
+      const u = (s as any).user;
+      if (u) users.push({ id: u.id, nickname: u.nickname });
+    }
+  }
+  io.to(roomName).emit('fishing:users', users);
+}
+
 function broadcastRoomList(io: Server) {
   const roomList = Array.from(rooms.values()).map((r) => ({
     id: r.id,
@@ -1709,20 +1725,29 @@ export function setupSocket(io: Server) {
       if (timer) { clearTimeout(timer); fishingTimers.delete(userId); }
     }
 
+    socket.on('fishing:get_counts', () => {
+      broadcastFishingCounts(io);
+    });
+
     socket.on('fishing:join', (location: string) => {
       if (!['river', 'lake', 'sea'].includes(location)) return;
       socket.rooms.forEach((r) => { if (r.startsWith('fishing:')) socket.leave(r); });
       stopFishingLoop(user.id);
       socket.join(`fishing:${location}`);
       broadcastFishingCounts(io);
+      broadcastFishingUsers(io, location);
       // Start auto-fishing
       startFishingLoop(user.id, user.nickname, location);
     });
 
     socket.on('fishing:leave', () => {
+      // Find which location the user was in before leaving
+      const prevLocations: string[] = [];
+      socket.rooms.forEach((r) => { if (r.startsWith('fishing:')) prevLocations.push(r.replace('fishing:', '')); });
       socket.rooms.forEach((r) => { if (r.startsWith('fishing:')) socket.leave(r); });
       stopFishingLoop(user.id);
       broadcastFishingCounts(io);
+      for (const loc of prevLocations) broadcastFishingUsers(io, loc);
     });
 
     // Chat

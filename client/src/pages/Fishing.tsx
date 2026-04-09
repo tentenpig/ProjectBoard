@@ -47,6 +47,7 @@ export default function Fishing() {
   const [catchTime, setCatchTime] = useState(0);
   const [lastCatch, setLastCatch] = useState<FishDef | null>(null);
   const [catches, setCatches] = useState<FishDef[]>([]);
+  const [fishingUsers, setFishingUsers] = useState<{ id: number; nickname: string }[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [showInventory, setShowInventory] = useState(false);
   const [showShop, setShowShop] = useState(false);
@@ -69,9 +70,11 @@ export default function Fishing() {
   useEffect(() => {
     if (!socket) return;
     socket.on('fishing:counts', (c: Record<string, number>) => setCounts(c));
+    socket.on('fishing:users', (u: { id: number; nickname: string }[]) => setFishingUsers(u));
     socket.on('fishing:cast', (data: { catchTime: number }) => { setCasting(true); setCatchTime(Date.now() + data.catchTime); setLastCatch(null); });
     socket.on('fishing:caught', (data: { fish: FishDef }) => { setCasting(false); setLastCatch(data.fish); setCatches((p) => [data.fish, ...p.slice(0, 19)]); loadInventory(); });
-    return () => { socket.off('fishing:counts'); socket.off('fishing:cast'); socket.off('fishing:caught'); };
+    socket.emit('fishing:get_counts');
+    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); };
   }, [socket]);
 
   const loadInventory = () => fetch(`${SERVER_URL}/api/fishing/inventory`, { headers }).then((r) => r.json()).then((d) => setInventory(d.inventory || []));
@@ -81,7 +84,7 @@ export default function Fishing() {
   useEffect(() => { loadInventory(); }, []);
 
   const enterLocation = (loc: string) => { setLocation(loc); setCasting(false); setLastCatch(null); setCatches([]); setMessage(''); socket?.emit('fishing:join', loc); };
-  const leaveLocation = () => { socket?.emit('fishing:leave'); setLocation(null); setCasting(false); setLastCatch(null); setCatches([]); };
+  const leaveLocation = () => { socket?.emit('fishing:leave'); setLocation(null); setCasting(false); setLastCatch(null); setCatches([]); setFishingUsers([]); };
 
   const buyRod = (rodKey: string) => {
     fetch(`${SERVER_URL}/api/shop/buy-rod`, { method: 'POST', headers, body: JSON.stringify({ rodKey }) })
@@ -313,6 +316,15 @@ export default function Fishing() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {fishingUsers.length > 0 && (
+        <div className="fishing-users">
+          <span className="fishing-users-label">🎣 낚시 중 ({fishingUsers.length})</span>
+          {fishingUsers.map((u) => (
+            <span key={u.id} className={`fishing-user ${u.id === user?.id ? 'is-me' : ''}`}>{u.nickname}</span>
+          ))}
         </div>
       )}
 
