@@ -428,6 +428,40 @@ export default function Fishing() {
         </div>
       </div>
 
+      {showEncyclopedia && (
+        <div className="modal-overlay" onClick={() => setShowEncyclopedia(false)}>
+          <div className="modal encyclopedia-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rules-header">
+              <h2>📖 물고기 도감 ({encyclopedia.caught}/{encyclopedia.total})</h2>
+              <button onClick={() => setShowEncyclopedia(false)} className="btn-secondary btn-small">닫기</button>
+            </div>
+            <div className="encyclopedia-content">
+              {Object.entries(LOCATION_INFO).map(([locKey, info]) => (
+                <div key={locKey} className="encyclopedia-section">
+                  <h3>{info.emoji} {info.name}</h3>
+                  <div className="inventory-grid">
+                    {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => {
+                      const fishInfo = getFishInfo(entry.key);
+                      const weight = fishInfo?.weight || 30;
+                      return (
+                        <div key={entry.key}
+                          className={`inv-grid-item ${!entry.caught ? 'enc-unknown' : ''}`}
+                          style={{ background: entry.caught ? getRarityColor(weight) : 'var(--bg-surface)' }}
+                          onClick={() => entry.caught && setFishDetail({ ...entry, weight, description: fishInfo?.description })}
+                        >
+                          <span className="inv-grid-emoji">{entry.emoji}</span>
+                          <span className="inv-grid-name">{entry.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {fishDetail && <FishDetail fish={fishDetail} onClose={() => setFishDetail(null)} />}
     </div>
   );
