@@ -61,6 +61,7 @@ import {
   getPlayerView as getFlickPlayerView,
   getSpectatorView as getFlickSpectatorView,
 } from '../games/flick/logic';
+import { pickFish } from '../routes/fishing';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -358,6 +359,15 @@ function autoAssignTeam(room: Room, playerId: number) {
   const team0 = Array.from(room.teams.values()).filter((t) => t === 0).length;
   const team1 = Array.from(room.teams.values()).filter((t) => t === 1).length;
   room.teams.set(playerId, team0 <= team1 ? 0 : 1);
+}
+
+function broadcastFishingCounts(io: Server) {
+  const counts: Record<string, number> = { river: 0, lake: 0, sea: 0 };
+  for (const loc of ['river', 'lake', 'sea']) {
+    const room = io.sockets.adapter.rooms.get(`fishing:${loc}`);
+    counts[loc] = room?.size || 0;
+  }
+  io.emit('fishing:counts', counts);
 }
 
 function broadcastRoomList(io: Server) {
@@ -1650,6 +1660,63 @@ export function setupSocket(io: Server) {
       }
     });
 
+    // Fishing auto-loop
+    const fishingTimers = new Map<number, ReturnType<typeof setTimeout>>();
+
+    function startFishingLoop(userId: number, nickname: string, location: string) {
+      stopFishingLoop(userId);
+      const fish = pickFish(location);
+      const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
+
+      socket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });
+
+      const timer = setTimeout(async () => {
+        try {
+          // Check user is still in the fishing room
+          if (!socket.rooms.has(`fishing:${location}`)) return;
+
+          // Add to inventory
+          await pool.query('INSERT INTO fish_inventory (user_id, fish_key) VALUES (?, ?)', [userId, fish.key]);
+
+          // Notify user
+          socket.emit('fishing:caught', { fish });
+
+          // Broadcast to location chat
+          const catchMsg = { nickname: `🎣 ${nickname}`, text: `${fish.emoji} ${fish.name}을(를) 낚았습니다!`, timestamp: Date.now(), system: true };
+          addChatMessage(`fishing:${location}`, catchMsg);
+          io.to(`fishing:${location}`).emit('chat:message', catchMsg);
+
+          // Auto re-cast
+          startFishingLoop(userId, nickname, location);
+        } catch (err) {
+          console.error('Fishing loop error:', err);
+        }
+      }, catchTime);
+
+      fishingTimers.set(userId, timer);
+    }
+
+    function stopFishingLoop(userId: number) {
+      const timer = fishingTimers.get(userId);
+      if (timer) { clearTimeout(timer); fishingTimers.delete(userId); }
+    }
+
+    socket.on('fishing:join', (location: string) => {
+      if (!['river', 'lake', 'sea'].includes(location)) return;
+      socket.rooms.forEach((r) => { if (r.startsWith('fishing:')) socket.leave(r); });
+      stopFishingLoop(user.id);
+      socket.join(`fishing:${location}`);
+      broadcastFishingCounts(io);
+      // Start auto-fishing
+      startFishingLoop(user.id, user.nickname, location);
+    });
+
+    socket.on('fishing:leave', () => {
+      socket.rooms.forEach((r) => { if (r.startsWith('fishing:')) socket.leave(r); });
+      stopFishingLoop(user.id);
+      broadcastFishingCounts(io);
+    });
+
     // Chat
     socket.on('chat:history', (channel: string) => {
       const history = chatHistory.get(channel) || [];
@@ -1665,6 +1732,9 @@ export function setupSocket(io: Server) {
       if (channel === 'lobby') {
         addChatMessage('lobby', msg);
         io.to('lobby').emit('chat:message', msg);
+      } else if (channel.startsWith('fishing:')) {
+        addChatMessage(channel, msg);
+        io.to(channel).emit('chat:message', msg);
       } else {
         if (room && (room.players.find((p) => p.id === user.id) || isSpec)) {
           addChatMessage(channel, msg);
@@ -1677,6 +1747,7 @@ export function setupSocket(io: Server) {
     socket.on('disconnect', () => {
       userSockets.delete(user.id);
       onlineNicknames.delete(user.nickname);
+      stopFishingLoop(user.id);
       console.log(`Disconnected: ${user.nickname} (${user.id})`);
       removeUserFromRoom(io, socket, user);
     });

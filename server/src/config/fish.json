@@ -1,0 +1,31 @@
+{
+  "locations": {
+    "river": { "name": "강", "emoji": "🏞️" },
+    "lake": { "name": "호수", "emoji": "🌊" },
+    "sea": { "name": "바다", "emoji": "🌅" }
+  },
+  "fish": [
+    { "key": "crucian_carp",   "name": "붕어",     "emoji": "🐟", "location": "river", "weight": 30, "minTime": 30, "maxTime": 60,  "price": 5,   "exp": 3  },
+    { "key": "catfish",        "name": "메기",     "emoji": "🐡", "location": "river", "weight": 20, "minTime": 40, "maxTime": 80,  "price": 10,  "exp": 5  },
+    { "key": "sweetfish",      "name": "은어",     "emoji": "🐟", "location": "river", "weight": 15, "minTime": 50, "maxTime": 100, "price": 15,  "exp": 8  },
+    { "key": "eel",            "name": "장어",     "emoji": "🐍", "location": "river", "weight": 8,  "minTime": 70, "maxTime": 130, "price": 30,  "exp": 15 },
+    { "key": "salmon",         "name": "연어",     "emoji": "🐠", "location": "river", "weight": 5,  "minTime": 90, "maxTime": 160, "price": 50,  "exp": 25 },
+    { "key": "golden_carp",    "name": "황금잉어", "emoji": "✨",  "location": "river", "weight": 2,  "minTime": 120,"maxTime": 180, "price": 100, "exp": 50 },
+
+    { "key": "bass",           "name": "배스",     "emoji": "🐟", "location": "lake",  "weight": 25, "minTime": 30, "maxTime": 60,  "price": 8,   "exp": 4  },
+    { "key": "carp",           "name": "잉어",     "emoji": "🐡", "location": "lake",  "weight": 20, "minTime": 40, "maxTime": 80,  "price": 12,  "exp": 6  },
+    { "key": "pike",           "name": "강꼬치",   "emoji": "🐊", "location": "lake",  "weight": 15, "minTime": 50, "maxTime": 100, "price": 18,  "exp": 10 },
+    { "key": "trout",          "name": "송어",     "emoji": "🐠", "location": "lake",  "weight": 10, "minTime": 60, "maxTime": 120, "price": 25,  "exp": 12 },
+    { "key": "mandarin_fish",  "name": "쏘가리",   "emoji": "🎣", "location": "lake",  "weight": 5,  "minTime": 80, "maxTime": 150, "price": 45,  "exp": 22 },
+    { "key": "giant_catfish",  "name": "대형메기", "emoji": "🐳", "location": "lake",  "weight": 3,  "minTime": 100,"maxTime": 180, "price": 80,  "exp": 40 },
+    { "key": "dragon_fish",    "name": "용물고기", "emoji": "🐉", "location": "lake",  "weight": 1,  "minTime": 150,"maxTime": 180, "price": 150, "exp": 75 },
+
+    { "key": "mackerel",       "name": "고등어",   "emoji": "🐟", "location": "sea",   "weight": 25, "minTime": 30, "maxTime": 60,  "price": 10,  "exp": 5  },
+    { "key": "squid",          "name": "오징어",   "emoji": "🦑", "location": "sea",   "weight": 20, "minTime": 40, "maxTime": 80,  "price": 15,  "exp": 7  },
+    { "key": "sea_bream",      "name": "도미",     "emoji": "🐡", "location": "sea",   "weight": 15, "minTime": 50, "maxTime": 100, "price": 20,  "exp": 10 },
+    { "key": "flatfish",       "name": "광어",     "emoji": "🐠", "location": "sea",   "weight": 10, "minTime": 60, "maxTime": 120, "price": 35,  "exp": 18 },
+    { "key": "tuna",           "name": "참치",     "emoji": "🐬", "location": "sea",   "weight": 5,  "minTime": 90, "maxTime": 160, "price": 60,  "exp": 30 },
+    { "key": "shark",          "name": "상어",     "emoji": "🦈", "location": "sea",   "weight": 3,  "minTime": 120,"maxTime": 180, "price": 100, "exp": 50 },
+    { "key": "whale",          "name": "고래",     "emoji": "🐋", "location": "sea",   "weight": 1,  "minTime": 150,"maxTime": 180, "price": 200, "exp": 100}
+  ]
+}

@@ -3063,3 +3063,254 @@ button {
     gap: 4px;
   }
 }
+
+/* ========== Fishing ========== */
+.fishing-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.fishing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.fishing-header h1 { font-size: 20px; }
+
+.fishing-desc {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.fishing-locations {
+  display: flex;
+  gap: 12px;
+}
+
+.fishing-loc-card {
+  flex: 1;
+  padding: 28px 16px;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.fishing-loc-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.loc-emoji { font-size: 36px; }
+.loc-name { font-size: 18px; font-weight: 700; }
+.loc-count { font-size: 13px; opacity: 0.8; }
+
+.fishing-main {
+  display: flex;
+  gap: 12px;
+}
+
+.fishing-scene {
+  flex: 1;
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  color: #fff;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fishing-idle, .fishing-waiting, .fishing-caught {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.fishing-idle p, .fishing-waiting p { font-size: 16px; }
+
+.fishing-bobber {
+  font-size: 48px;
+  animation: bobber-float 1.5s ease-in-out infinite;
+}
+
+@keyframes bobber-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.fishing-timer {
+  font-family: 'Fira Code', monospace;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.fishing-catch-emoji {
+  font-size: 56px;
+  animation: catch-bounce 0.5s ease-out;
+}
+
+@keyframes catch-bounce {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.fishing-catch-name {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.fishing-catch-info {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.fishing-message {
+  text-align: center;
+  padding: 8px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.fishing-chat {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.fishing-chat .chat-container {
+  height: 280px;
+}
+
+/* Inventory */
+.fishing-inventory {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.fishing-inventory h3 {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.fishing-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 16px;
+}
+
+.inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inventory-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.inv-fish { flex: 1; font-weight: 500; }
+.inv-info { font-size: 12px; color: var(--text-muted); }
+.inv-actions { display: flex; gap: 4px; }
+
+.fishing-header-btns { display: flex; gap: 6px; }
+
+.fishing-auto-msg {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.fishing-log {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fishing-log-item {
+  font-size: 12px;
+  background: rgba(255,255,255,0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Encyclopedia */
+.encyclopedia-modal {
+  max-width: 600px;
+  width: calc(100vw - 32px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.encyclopedia-content {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.encyclopedia-section {
+  margin-bottom: 16px;
+}
+
+.encyclopedia-section h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+
+.encyclopedia-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.encyclopedia-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.encyclopedia-item.unknown {
+  opacity: 0.5;
+}
+
+.enc-emoji { font-size: 18px; }
+.enc-name { flex: 1; font-weight: 500; }
+.enc-info { font-size: 11px; color: var(--text-muted); }
+
+@media (max-width: 768px) {
+  .fishing-locations { flex-direction: column; }
+  .fishing-main { flex-direction: column; }
+  .fishing-chat { width: 100%; }
+  .fishing-scene { min-height: 200px; padding: 20px; }
+  .loc-emoji { font-size: 28px; }
+}
