@@ -296,18 +296,23 @@ export default function Fishing() {
       </header>
 
       {showInventory && (
-        <div className="fishing-inventory">
-          <h3>배낭</h3>
-          {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
-            <div className="inventory-list">
-              {inventory.map((item) => (
-                <div key={item.key} className="inventory-item" style={{ cursor: 'pointer' }} onClick={() => setFishDetail(item)}>
-                  <span className="inv-fish">{item.emoji} {item.name} x{item.count}</span>
-                  <span className="inv-info">💰{item.price} EXP{item.exp}</span>
-                </div>
-              ))}
+        <div className="modal-overlay" onClick={() => setShowInventory(false)}>
+          <div className="modal inventory-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rules-header">
+              <h2>🎒 배낭 ({inventory.length})</h2>
+              <button onClick={() => setShowInventory(false)} className="btn-secondary btn-small">닫기</button>
             </div>
-          )}
+            {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
+              <div className="inventory-grid">
+                {inventory.map((item) => (
+                  <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.weight) }} onClick={() => setFishDetail(item)}>
+                    <span className="inv-grid-emoji">{item.emoji}</span>
+                    <span className="inv-grid-name">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
