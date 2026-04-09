@@ -33,9 +33,27 @@ export default function Lobby() {
   const [roomName, setRoomName] = useState('');
   const [gameType, setGameType] = useState('six-nimmt');
   const [maxPlayers, setMaxPlayers] = useState(4);
-  const { user, logout } = useAuth();
+  const { user, token, logout, updateUser } = useAuth();
   const socket = useSocket();
   const { theme, setTheme, themes } = useTheme();
+
+  // Check daily reward on mount (handles refresh/new tab)
+  useEffect(() => {
+    if (!token || rewardPopup) return;
+    const SERVER_URL = `http://${window.location.hostname}:3001`;
+    fetch(`${SERVER_URL}/api/auth/daily-check`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.dailyReward > 0) {
+          setRewardPopup({ exp: data.dailyReward, created: false });
+          updateUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const navigate = useNavigate();
 
   const handleRoomList = useCallback((list: RoomInfo[]) => {

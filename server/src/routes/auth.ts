@@ -81,4 +81,38 @@ router.post('/enter', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/daily-check', async (req: Request, res: Response) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; nickname: string };
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, nickname, exp, last_login_reward FROM users WHERE id = ?',
+      [decoded.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: '유저를 찾을 수 없습니다.' });
+
+    const user = rows[0];
+    const today = new Date().toISOString().slice(0, 10);
+    const lastReward = user.last_login_reward ? new Date(user.last_login_reward).toISOString().slice(0, 10) : null;
+
+    if (lastReward === today) {
+      const levelInfo = calculateLevel(user.exp);
+      return res.json({ dailyReward: 0, user: { id: user.id, nickname: user.nickname, exp: user.exp, ...levelInfo } });
+    }
+
+    const dailyReward = balance.dailyLoginExp;
+    const newExp = user.exp + dailyReward;
+    await pool.query('UPDATE users SET exp = ?, last_login_reward = CURDATE() WHERE id = ?', [newExp, user.id]);
+    updateLeaderboard(user.id, user.nickname, newExp).catch(() => {});
+
+    const levelInfo = calculateLevel(newExp);
+    res.json({ dailyReward, user: { id: user.id, nickname: user.nickname, exp: newExp, ...levelInfo } });
+  } catch {
+    res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
+  }
+});
+
 export default router;
