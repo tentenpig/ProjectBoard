@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -47,6 +47,7 @@ export default function Fishing() {
   const [catchTime, setCatchTime] = useState(0);
   const [lastCatch, setLastCatch] = useState<FishDef | null>(null);
   const [fishLog, setFishLog] = useState<{ type: 'catch' | 'system'; nickname?: string; fish?: FishDef; text?: string; timestamp: number }[]>([]);
+  const logEndRef = useRef<HTMLDivElement>(null);
   const [fishingUsers, setFishingUsers] = useState<{ id: number; nickname: string }[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [showInventory, setShowInventory] = useState(false);
@@ -80,10 +81,10 @@ export default function Fishing() {
         const joined = u.filter((p) => !prevIds.has(p.id));
         const left = prev.filter((p) => !newIds.has(p.id));
         for (const p of joined) {
-          setFishLog((logs) => [{ type: 'system', text: `${p.nickname}님이 낚시터에 입장했습니다.`, timestamp: Date.now() }, ...logs.slice(0, 49)]);
+          setFishLog((logs) => [...logs.slice(-49), { type: 'system' as const, text: `${p.nickname}님이 낚시터에 입장했습니다.`, timestamp: Date.now() }]);
         }
         for (const p of left) {
-          setFishLog((logs) => [{ type: 'system', text: `${p.nickname}님이 낚시터를 떠났습니다.`, timestamp: Date.now() }, ...logs.slice(0, 49)]);
+          setFishLog((logs) => [...logs.slice(-49), { type: 'system' as const, text: `${p.nickname}님이 낚시터를 떠났습니다.`, timestamp: Date.now() }]);
         }
         return u;
       });
@@ -91,7 +92,7 @@ export default function Fishing() {
     socket.on('fishing:cast', (data: { catchTime: number }) => { setCasting(true); setCatchTime(Date.now() + data.catchTime); setLastCatch(null); });
     socket.on('fishing:caught', (data: { fish: FishDef }) => { setCasting(false); setLastCatch(data.fish); loadInventory(); });
     socket.on('fishing:log', (entry: { nickname: string; fish: FishDef; timestamp: number }) => {
-      setFishLog((prev) => [{ type: 'catch' as const, ...entry }, ...prev.slice(0, 49)]);
+      setFishLog((prev) => [...prev.slice(-49), { type: 'catch' as const, ...entry }]);
     });
     socket.emit('fishing:get_counts');
     return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); };
@@ -102,6 +103,10 @@ export default function Fishing() {
   const loadShop = () => fetch(`${SERVER_URL}/api/shop/info`, { headers }).then((r) => r.json()).then((d) => setShopInfo(d));
 
   useEffect(() => { loadInventory(); }, []);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [fishLog]);
 
   const loadFishRanking = () => {
     fetch(`${SERVER_URL}/api/fishing-ranking/top`).then((r) => r.json()).then((d) => setFishRanking(Array.isArray(d) ? d : []));
@@ -419,6 +424,7 @@ export default function Fishing() {
                   </div>
                 )
               ))}
+              <div ref={logEndRef} />
             </div>
           </div>
         </div>
