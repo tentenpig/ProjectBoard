@@ -60,6 +60,8 @@ export default function Fishing() {
   const logEndRef = useRef<HTMLDivElement>(null);
   const [fishingUsers, setFishingUsers] = useState<{ id: number; nickname: string }[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [activeEvent, setActiveEvent] = useState<{ location: string; locationName: string; endTime: number } | null>(null);
+  const [eventToast, setEventToast] = useState<string | null>(null);
   const [showInventory, setShowInventory] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [shopTab, setShopTab] = useState<'buy' | 'sell'>('buy');
@@ -111,8 +113,26 @@ export default function Fishing() {
       setFishLog([]);
       setFishingUsers([]);
     });
+    socket.on('fishing:event_start', (data: { location: string; locationName: string; endTime: number }) => {
+      setActiveEvent(data);
+      setEventToast(`🎉 ${data.locationName} 낚시터에 특별 이벤트가 시작되었습니다!`);
+      setTimeout(() => setEventToast(null), 5000);
+    });
+    socket.on('fishing:event_end', (data: { location: string; locationName: string }) => {
+      setActiveEvent(null);
+      setEventToast(`${data.locationName} 낚시터 이벤트가 종료되었습니다.`);
+      setTimeout(() => setEventToast(null), 4000);
+    });
+    socket.on('fishing:event_status', (event: any) => {
+      if (event) {
+        setActiveEvent({ location: event.location, locationName: LOCATION_INFO[event.location]?.name || event.location, endTime: event.endTime });
+      } else {
+        setActiveEvent(null);
+      }
+    });
     socket.emit('fishing:get_counts');
-    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); socket.off('fishing:kicked'); };
+    socket.emit('fishing:get_event');
+    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); socket.off('fishing:kicked'); socket.off('fishing:event_start'); socket.off('fishing:event_end'); socket.off('fishing:event_status'); };
   }, [socket]);
 
   const loadInventory = () => fetch(`${SERVER_URL}/api/fishing/inventory`, { headers }).then((r) => r.json()).then((d) => setInventory(d.inventory || []));
@@ -383,6 +403,17 @@ export default function Fishing() {
 
         {fishDetail && <FishDetail fish={fishDetail} onClose={() => setFishDetail(null)} />}
 
+        {eventToast && <div className="fishing-event-toast">{eventToast}</div>}
+
+        {activeEvent && (
+          <div className="fishing-event-banner">
+            <span className="event-banner-icon">🎉</span>
+            <span className="event-banner-text">
+              <strong>특별 이벤트 진행 중!</strong> {LOCATION_INFO[activeEvent.location]?.emoji} {LOCATION_INFO[activeEvent.location]?.name} 낚시터에서 이벤트 전용 물고기가 등장합니다!
+            </span>
+          </div>
+        )}
+
         <p className="fishing-desc">낚시터를 선택하세요</p>
         <div className="fishing-locations">
           {Object.entries(LOCATION_INFO).map(([key, info]) => (
@@ -390,6 +421,7 @@ export default function Fishing() {
               <span className="loc-emoji">{info.emoji}</span>
               <span className="loc-name">{info.name}</span>
               <span className="loc-count">{counts[key] || 0}명 낚시 중</span>
+              {activeEvent?.location === key && <span className="loc-event">🎉 이벤트!</span>}
             </div>
           ))}
         </div>

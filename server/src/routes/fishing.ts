@@ -139,8 +139,8 @@ export default router;
 
 // Export for socket usage
 export { allFish, FishDef };
-export function pickFish(location: string, rarityBonus: number = 0): FishDef {
-  const locationFish = allFish.filter((f) => f.location === location);
+export function pickFish(location: string, rarityBonus: number = 0, eventActive: boolean = false): FishDef {
+  const locationFish = allFish.filter((f) => f.location === location && ((f as any).event ? eventActive : true));
 
   // Apply rarity bonus: boost weight of rarer fish (lower base weight)
   const adjustedFish = locationFish.map((f) => {

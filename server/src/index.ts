@@ -10,6 +10,7 @@ import fishingRankingRouter from './routes/fishingRanking';
 import { setupSocket } from './socket/index';
 import pool from './config/database';
 import { syncLeaderboardFromDB } from './config/redis';
+import { initFishEventScheduler } from './config/fishEvent';
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +36,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 setupSocket(io);
+initFishEventScheduler(io);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {

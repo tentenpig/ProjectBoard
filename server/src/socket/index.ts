@@ -62,6 +62,7 @@ import {
   getSpectatorView as getFlickSpectatorView,
 } from '../games/flick/logic';
 import { pickFish, getRodBonus } from '../routes/fishing';
+import { getActiveEventForLocation, getActiveEvent, getAllEvents } from '../config/fishEvent';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -382,7 +383,8 @@ function startFishingLoop(io: Server, userId: number, nickname: string, location
       if (eqRows.length > 0) rodBonus = getRodBonus(eqRows[0].rod_key);
     } catch {}
 
-    const fish = pickFish(location, rodBonus);
+    const eventActive = !!getActiveEventForLocation(location);
+    const fish = pickFish(location, rodBonus, eventActive);
     const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
 
     targetSocket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });
@@ -1757,6 +1759,11 @@ export function setupSocket(io: Server) {
 
     socket.on('fishing:get_counts', () => {
       broadcastFishingCounts(io);
+    });
+
+    socket.on('fishing:get_event', () => {
+      const event = getActiveEvent();
+      socket.emit('fishing:event_status', event);
     });
 
     socket.on('fishing:join', (location: string) => {

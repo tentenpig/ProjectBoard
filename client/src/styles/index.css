@@ -3116,6 +3116,52 @@ button {
 .loc-name { font-size: 18px; font-weight: 700; }
 .loc-count { font-size: 13px; opacity: 0.8; }
 
+.loc-event {
+  background: rgba(255, 215, 0, 0.3);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  animation: event-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes event-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 215, 0, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.6); }
+}
+
+.fishing-event-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #5a3a00, #8a6914);
+  color: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  animation: event-glow 2s ease-in-out infinite;
+}
+
+.event-banner-icon { font-size: 24px; }
+.event-banner-text { font-size: 14px; line-height: 1.5; }
+
+.fishing-event-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #5a3a00, #8a6914);
+  color: #fff;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  z-index: 300;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  animation: toast-in 0.3s ease-out;
+  white-space: nowrap;
+}
+
 .fishing-main {
   display: flex;
   gap: 12px;
