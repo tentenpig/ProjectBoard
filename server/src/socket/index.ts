@@ -63,6 +63,10 @@ import {
 } from '../games/flick/logic';
 import { pickFish, getRodBonus } from '../routes/fishing';
 import { getActiveEventForLocation, getActiveEvent, getAllEvents } from '../config/fishEvent';
+import { sendSlackMessage } from '../config/slack';
+
+const RARE_CATCH_LOCATION_NAMES: Record<string, string> = { river: '🏞️ 강', lake: '🌊 호수', sea: '🌅 바다' };
+const RARE_CATCH_GRADE_LABELS: Record<string, string> = { legendary: '⭐ 전설', mythical: '🌟 신화' };
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -408,6 +412,15 @@ function startFishingLoop(io: Server, userId: number, nickname: string, location
           sizeCm,
           timestamp: Date.now(),
         });
+
+        const grade = (fish as any).grade;
+        if (grade === 'legendary' || grade === 'mythical') {
+          const gradeLabel = RARE_CATCH_GRADE_LABELS[grade];
+          const locName = RARE_CATCH_LOCATION_NAMES[location] || location;
+          sendSlackMessage(
+            `${gradeLabel} 등급 출현! *${nickname}* 님이 ${locName}에서 ${fish.emoji} *${fish.name}* (${sizeCm}cm)을(를) 낚았습니다!`
+          ).catch(() => {});
+        }
 
         startFishingLoop(io, userId, nickname, location);
       } catch (err) {
