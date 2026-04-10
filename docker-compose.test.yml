@@ -64,6 +64,7 @@ services:
       - server-test
     volumes:
       - D:/Workbench/ToyProject/ProjectBoard-dev/client/src:/app/src
+      - D:/Workbench/ToyProject/ProjectBoard-dev/client/public:/app/public
 
 volumes:
   mysql_test_data:
