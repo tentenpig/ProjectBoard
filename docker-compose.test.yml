@@ -46,7 +46,6 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: test-server-jwt-secret-key
       PORT: 3001
-      ENABLE_DEBUG: "true"
       SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
     depends_on:
       mysql-test:

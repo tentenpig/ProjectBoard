@@ -32,11 +32,7 @@ app.use('/api/ranking', rankingRouter);
 app.use('/api/fishing', fishingRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/fishing-ranking', fishingRankingRouter);
-
-if (process.env.ENABLE_DEBUG === 'true') {
-  app.use('/api/debug', debugRouter);
-  console.log('[Debug] Debug routes enabled at /api/debug');
-}
+app.use('/api/debug', debugRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
