@@ -3192,11 +3192,21 @@ button {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  max-height: 500px;
 }
 
 .fishing-chat .chat-container {
-  height: 100%;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.fishing-chat .chat-messages {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 

@@ -24,6 +24,7 @@ const LOCATION_INFO: Record<string, { name: string; emoji: string; bg: string }>
 };
 
 const GRADE_COLORS: Record<string, string> = {
+  mythical: '#ff450099',
   legendary: '#c8a20088',
   rare: '#9b59b688',
   uncommon: '#2980b988',
@@ -31,6 +32,7 @@ const GRADE_COLORS: Record<string, string> = {
 };
 
 const GRADE_LABELS: Record<string, string> = {
+  mythical: '신화',
   legendary: '전설',
   rare: '희귀',
   uncommon: '보통',
@@ -335,6 +337,7 @@ export default function Fishing() {
                       <button onClick={() => selectByGrade('uncommon')} className="btn-secondary btn-small" style={{ color: '#2980b9' }}>보통</button>
                       <button onClick={() => selectByGrade('rare')} className="btn-secondary btn-small" style={{ color: '#9b59b6' }}>희귀</button>
                       <button onClick={() => selectByGrade('legendary')} className="btn-secondary btn-small" style={{ color: '#c8a200' }}>전설</button>
+                      <button onClick={() => selectByGrade('mythical')} className="btn-secondary btn-small" style={{ color: '#ff4500' }}>신화</button>
                       <button onClick={selectNone} className="btn-secondary btn-small">해제</button>
                     </div>
                   </div>

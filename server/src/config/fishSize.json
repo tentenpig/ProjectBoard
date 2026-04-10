@@ -21,5 +21,9 @@
   "octopus": [30, 60], "abalone": [8, 15], "cuttlefish": [15, 35], "yellowtail": [40, 100],
   "red_sea_bream": [25, 55], "snow_crab": [20, 40], "tuna": [60, 200], "marlin": [150, 350],
   "giant_octopus": [100, 300], "bluefin_tuna": [100, 300], "sunfish": [80, 200],
-  "shark": [100, 300], "whale_shark": [400, 1200], "sea_king": [500, 1500]
+  "shark": [100, 300], "whale_shark": [400, 1200], "sea_king": [500, 1500],
+
+  "azure_dragon": [800, 2000], "kun_fish": [3000, 10000], "taigong_fish": [50, 100],
+  "hyeonmu": [500, 1500], "ineo": [150, 300], "white_dragon": [1000, 3000],
+  "leviathan": [5000, 15000], "samjokoh_fish": [200, 500], "kraken": [2000, 8000]
 }

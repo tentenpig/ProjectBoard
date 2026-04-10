@@ -22,6 +22,7 @@ const LOCATION_NAMES: Record<string, string> = {
 };
 
 const GRADE_INFO: Record<string, { label: string; color: string }> = {
+  mythical: { label: '신화', color: '#ff4500' },
   legendary: { label: '전설', color: '#c8a200' },
   rare: { label: '희귀', color: '#9b59b6' },
   uncommon: { label: '보통', color: '#2980b9' },
