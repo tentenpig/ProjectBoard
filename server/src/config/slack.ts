@@ -27,7 +27,7 @@ export async function sendSlackMessage(message: string | SlackMessage): Promise<
 
   const base = typeof message === 'string' ? { text: message } : message;
   const payload = {
-    username: '낚시터',
+    username: process.env.SLACK_USERNAME || '낚시터',
     icon_emoji: ':fishing_pole_and_fish:',
     ...base,
   };
