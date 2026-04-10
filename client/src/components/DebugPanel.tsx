@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 interface FishListItem { key: string; name: string; grade: string; event: boolean; location: string; }
 
 export default function DebugPanel() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [fishList, setFishList] = useState<FishListItem[]>([]);
   const [selectedFish, setSelectedFish] = useState('');
@@ -39,8 +39,9 @@ export default function DebugPanel() {
     }
   };
 
-  // Only show on test server (port 5174)
+  // Only show on test server (port 5174) AND for admin users
   if (window.location.port !== '5174') return null;
+  if (!user?.is_admin) return null;
 
   const filteredFish = fishList.filter((f) =>
     (filterGrade === 'all' || f.grade === filterGrade) &&

@@ -8,6 +8,7 @@ interface User {
   level: number;
   currentExp: number;
   nextLevelExp: number;
+  is_admin?: boolean;
 }
 
 interface AuthContextType {

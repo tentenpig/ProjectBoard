@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database';
+import { RowDataPacket } from 'mysql2';
 import fishData from '../config/fish.json';
 import fishSizeData from '../config/fishSize.json';
 import { forceStartEvent, forceEndEvent, getAllEvents } from '../config/fishEvent';
@@ -17,11 +18,27 @@ function authUser(req: Request): { id: number; nickname: string } | null {
   try { return jwt.verify(token, JWT_SECRET) as any; } catch { return null; }
 }
 
-// Add fish to inventory
-router.post('/add-fish', async (req: Request, res: Response) => {
+// Admin guard: applied to ALL routes in this router
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const user = authUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT is_admin FROM users WHERE id = ?', [user.id]);
+    if (rows.length === 0 || !rows[0].is_admin) {
+      return res.status(403).json({ error: 'Forbidden: admin only' });
+    }
+    (req as any).authUser = user;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+}
 
+router.use(requireAdmin);
+
+// Add fish to inventory
+router.post('/add-fish', async (req: Request, res: Response) => {
+  const user = (req as any).authUser as { id: number; nickname: string };
   const { fishKey, count = 1 } = req.body;
   const fish = allFish.find((f: any) => f.key === fishKey);
   if (!fish) return res.status(400).json({ error: 'Unknown fish', available: allFish.map((f: any) => f.key) });
@@ -40,8 +57,7 @@ router.post('/add-fish', async (req: Request, res: Response) => {
 
 // Set gold
 router.post('/set-gold', async (req: Request, res: Response) => {
-  const user = authUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const user = (req as any).authUser as { id: number };
   const { amount } = req.body;
   await pool.query('UPDATE users SET gold = ? WHERE id = ?', [amount, user.id]);
   res.json({ success: true, gold: amount });
@@ -49,8 +65,7 @@ router.post('/set-gold', async (req: Request, res: Response) => {
 
 // Set exp
 router.post('/set-exp', async (req: Request, res: Response) => {
-  const user = authUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const user = (req as any).authUser as { id: number };
   const { amount } = req.body;
   await pool.query('UPDATE users SET exp = ? WHERE id = ?', [amount, user.id]);
   res.json({ success: true, exp: amount });
