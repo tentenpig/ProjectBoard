@@ -3806,6 +3806,27 @@ button {
   color: var(--accent);
 }
 
+.enc-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.enc-section-header h3 {
+  margin-bottom: 0;
+}
+
+.enc-sort-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.enc-sort-btns .btn-small {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
 .encyclopedia-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

@@ -69,6 +69,16 @@ export default function Fishing() {
   const [sellSelected, setSellSelected] = useState<Set<number>>(new Set());
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [encyclopedia, setEncyclopedia] = useState<{ entries: EncyclopediaEntry[]; total: number; caught: number }>({ entries: [], total: 0, caught: 0 });
+  type EncSort = { by: 'grade' | 'name'; dir: 'asc' | 'desc' };
+  const [encSort, setEncSort] = useState<Record<string, EncSort>>({});
+  const getEncSort = (loc: string): EncSort => encSort[loc] || { by: 'grade', dir: 'asc' };
+  const toggleEncSort = (loc: string, by: 'grade' | 'name') => {
+    setEncSort((prev) => {
+      const cur = prev[loc] || { by: 'grade', dir: 'asc' };
+      const next: EncSort = cur.by === by ? { by, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { by, dir: 'asc' };
+      return { ...prev, [loc]: next };
+    });
+  };
   const [fishDetail, setFishDetail] = useState<any>(null);
   const [showFishRanking, setShowFishRanking] = useState(false);
   const [fishRanking, setFishRanking] = useState<{ rank: number; userId: number; nickname: string; totalCount: number }[]>([]);
@@ -195,6 +205,25 @@ export default function Fishing() {
 
   const getFishInfo = (key: string) => allFishData.find((f) => f.key === key);
 
+  const GRADE_RANK: Record<string, number> = { common: 0, uncommon: 1, rare: 2, legendary: 3, mythical: 4 };
+  const sortEncEntries = (entries: EncyclopediaEntry[], loc: string): EncyclopediaEntry[] => {
+    const sort = getEncSort(loc);
+    const arr = entries.slice();
+    arr.sort((a, b) => {
+      const fa = getFishInfo(a.key);
+      const fb = getFishInfo(b.key);
+      let cmp = 0;
+      if (sort.by === 'grade') {
+        cmp = (GRADE_RANK[fa?.grade || 'common'] ?? 0) - (GRADE_RANK[fb?.grade || 'common'] ?? 0);
+        if (cmp === 0) cmp = (fa?.name || a.key).localeCompare(fb?.name || b.key);
+      } else {
+        cmp = (fa?.name || a.key).localeCompare(fb?.name || b.key);
+      }
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  };
+
   const sellTotal = Array.from(sellSelected).reduce((acc, id) => {
     const item = inventory.find((i) => i.inventoryId === id);
     return { gold: acc.gold + (item?.price || 0), exp: acc.exp + (item?.exp || 0) };
@@ -250,11 +279,20 @@ export default function Fishing() {
                 <button onClick={() => setShowEncyclopedia(false)} className="btn-secondary btn-small">닫기</button>
               </div>
               <div className="encyclopedia-content">
-                {Object.entries(LOCATION_INFO).map(([locKey, info]) => (
+                {Object.entries(LOCATION_INFO).map(([locKey, info]) => {
+                  const sort = getEncSort(locKey);
+                  const arrow = (k: 'grade' | 'name') => sort.by === k ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+                  return (
                   <div key={locKey} className="encyclopedia-section">
-                    <h3>{info.emoji} {info.name}</h3>
+                    <div className="enc-section-header">
+                      <h3>{info.emoji} {info.name}</h3>
+                      <div className="enc-sort-btns">
+                        <button className={`btn-small ${sort.by === 'grade' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'grade')}>등급순{arrow('grade')}</button>
+                        <button className={`btn-small ${sort.by === 'name' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'name')}>이름순{arrow('name')}</button>
+                      </div>
+                    </div>
                     <div className="inventory-grid">
-                      {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => {
+                      {sortEncEntries(encyclopedia.entries.filter((e) => e.location === locKey), locKey).map((entry) => {
                         const fishInfo = getFishInfo(entry.key);
                         const grade = fishInfo?.grade || 'common';
                         return (
@@ -270,7 +308,8 @@ export default function Fishing() {
                       })}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -530,11 +569,20 @@ export default function Fishing() {
               <button onClick={() => setShowEncyclopedia(false)} className="btn-secondary btn-small">닫기</button>
             </div>
             <div className="encyclopedia-content">
-              {Object.entries(LOCATION_INFO).map(([locKey, info]) => (
+              {Object.entries(LOCATION_INFO).map(([locKey, info]) => {
+                const sort = getEncSort(locKey);
+                const arrow = (k: 'grade' | 'name') => sort.by === k ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+                return (
                 <div key={locKey} className="encyclopedia-section">
-                  <h3>{info.emoji} {info.name}</h3>
+                  <div className="enc-section-header">
+                    <h3>{info.emoji} {info.name}</h3>
+                    <div className="enc-sort-btns">
+                      <button className={`btn-small ${sort.by === 'grade' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'grade')}>등급순{arrow('grade')}</button>
+                      <button className={`btn-small ${sort.by === 'name' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'name')}>이름순{arrow('name')}</button>
+                    </div>
+                  </div>
                   <div className="inventory-grid">
-                    {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => {
+                    {sortEncEntries(encyclopedia.entries.filter((e) => e.location === locKey), locKey).map((entry) => {
                       const fishInfo = getFishInfo(entry.key);
                       const grade = fishInfo?.grade || 'common';
                       return (
@@ -550,7 +598,8 @@ export default function Fishing() {
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
