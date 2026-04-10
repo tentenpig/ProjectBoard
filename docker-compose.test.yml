@@ -11,7 +11,7 @@ services:
       - "3308:3306"
     volumes:
       - mysql_test_data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - D:/Workbench/ToyProject/ProjectBoard-dev/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -32,7 +32,7 @@ services:
       retries: 5
 
   server-test:
-    build: ./server
+    build: D:/Workbench/ToyProject/ProjectBoard-dev/server
     container_name: projectboard-server-test
     ports:
       - "3002:3001"
@@ -52,17 +52,17 @@ services:
       redis-test:
         condition: service_healthy
     volumes:
-      - ./server/src:/app/src
+      - D:/Workbench/ToyProject/ProjectBoard-dev/server/src:/app/src
 
   client-test:
-    build: ./client
+    build: D:/Workbench/ToyProject/ProjectBoard-dev/client
     container_name: projectboard-client-test
     ports:
       - "5174:5173"
     depends_on:
       - server-test
     volumes:
-      - ./client/src:/app/src
+      - D:/Workbench/ToyProject/ProjectBoard-dev/client/src:/app/src
 
 volumes:
   mysql_test_data:
