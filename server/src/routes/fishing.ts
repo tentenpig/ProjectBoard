@@ -139,8 +139,24 @@ export default router;
 
 // Export for socket usage
 export { allFish, FishDef };
-export function pickFish(location: string, rarityBonus: number = 0): FishDef {
-  const locationFish = allFish.filter((f) => f.location === location);
+
+// Debug: per-user forced grade for next catches (admin only, set via /api/debug/force-grade)
+const forcedGrades = new Map<number, string>();
+export function setForcedGrade(userId: number, grade: string | null) {
+  if (grade) forcedGrades.set(userId, grade);
+  else forcedGrades.delete(userId);
+}
+export function getForcedGrade(userId: number): string | null {
+  return forcedGrades.get(userId) || null;
+}
+
+export function pickFish(location: string, rarityBonus: number = 0, eventActive: boolean = false, forcedGrade?: string | null): FishDef {
+  let locationFish = allFish.filter((f) => f.location === location && ((f as any).event ? eventActive : true));
+
+  if (forcedGrade) {
+    const filtered = locationFish.filter((f) => (f as any).grade === forcedGrade);
+    if (filtered.length > 0) locationFish = filtered;
+  }
 
   // Apply rarity bonus: boost weight of rarer fish (lower base weight)
   const adjustedFish = locationFish.map((f) => {

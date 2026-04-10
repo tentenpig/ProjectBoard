@@ -29,7 +29,7 @@ router.post('/enter', async (req: Request, res: Response) => {
 
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nickname, password_hash, exp, gold, last_login_reward FROM users WHERE nickname = ?',
+      'SELECT id, nickname, password_hash, exp, gold, last_login_reward, is_admin FROM users WHERE nickname = ?',
       [trimmed]
     );
 
@@ -58,7 +58,7 @@ router.post('/enter', async (req: Request, res: Response) => {
 
       const levelInfo = calculateLevel(exp);
       const token = jwt.sign({ id: user.id, nickname: user.nickname }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ token, user: { id: user.id, nickname: user.nickname, exp, gold: user.gold, ...levelInfo }, created: false, dailyReward });
+      return res.json({ token, user: { id: user.id, nickname: user.nickname, exp, gold: user.gold, is_admin: !!user.is_admin, ...levelInfo }, created: false, dailyReward });
     }
 
     // New account: create and login
@@ -74,7 +74,7 @@ router.post('/enter', async (req: Request, res: Response) => {
     updateLeaderboard(newUser.id, trimmed, initialExp).catch(() => {});
     const levelInfo = calculateLevel(initialExp);
     const token = jwt.sign(newUser, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: { ...newUser, exp: initialExp, gold: 0, ...levelInfo }, created: true, dailyReward });
+    res.json({ token, user: { ...newUser, exp: initialExp, gold: 0, is_admin: false, ...levelInfo }, created: true, dailyReward });
   } catch (err) {
     console.error('Enter error:', err);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -89,7 +89,7 @@ router.post('/daily-check', async (req: Request, res: Response) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: number; nickname: string };
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, nickname, exp, gold, last_login_reward FROM users WHERE id = ?',
+      'SELECT id, nickname, exp, gold, last_login_reward, is_admin FROM users WHERE id = ?',
       [decoded.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: '유저를 찾을 수 없습니다.' });
@@ -100,7 +100,7 @@ router.post('/daily-check', async (req: Request, res: Response) => {
 
     if (lastReward === today) {
       const levelInfo = calculateLevel(user.exp);
-      return res.json({ dailyReward: 0, user: { id: user.id, nickname: user.nickname, exp: user.exp, gold: user.gold, ...levelInfo } });
+      return res.json({ dailyReward: 0, user: { id: user.id, nickname: user.nickname, exp: user.exp, gold: user.gold, is_admin: !!user.is_admin, ...levelInfo } });
     }
 
     const dailyReward = balance.dailyLoginExp;
@@ -109,7 +109,7 @@ router.post('/daily-check', async (req: Request, res: Response) => {
     updateLeaderboard(user.id, user.nickname, newExp).catch(() => {});
 
     const levelInfo = calculateLevel(newExp);
-    res.json({ dailyReward, user: { id: user.id, nickname: user.nickname, exp: newExp, gold: user.gold, ...levelInfo } });
+    res.json({ dailyReward, user: { id: user.id, nickname: user.nickname, exp: newExp, gold: user.gold, is_admin: !!user.is_admin, ...levelInfo } });
   } catch {
     res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
   }

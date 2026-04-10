@@ -61,7 +61,12 @@ import {
   getPlayerView as getFlickPlayerView,
   getSpectatorView as getFlickSpectatorView,
 } from '../games/flick/logic';
-import { pickFish, getRodBonus } from '../routes/fishing';
+import { pickFish, getRodBonus, getForcedGrade } from '../routes/fishing';
+import { getActiveEventForLocation, getActiveEvent, getAllEvents } from '../config/fishEvent';
+import { sendSlackMessage } from '../config/slack';
+
+const RARE_CATCH_LOCATION_NAMES: Record<string, string> = { river: '🏞️ 강', lake: '🌊 호수', sea: '🌅 바다' };
+const RARE_CATCH_GRADE_LABELS: Record<string, string> = { legendary: '⭐ 전설', mythical: '🌟 신화' };
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -382,7 +387,9 @@ function startFishingLoop(io: Server, userId: number, nickname: string, location
       if (eqRows.length > 0) rodBonus = getRodBonus(eqRows[0].rod_key);
     } catch {}
 
-    const fish = pickFish(location, rodBonus);
+    const eventActive = !!getActiveEventForLocation(location);
+    const forcedGrade = getForcedGrade(userId);
+    const fish = pickFish(location, rodBonus, eventActive, forcedGrade);
     const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
 
     targetSocket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });
@@ -406,6 +413,15 @@ function startFishingLoop(io: Server, userId: number, nickname: string, location
           sizeCm,
           timestamp: Date.now(),
         });
+
+        const grade = (fish as any).grade;
+        if (grade === 'legendary' || grade === 'mythical') {
+          const gradeLabel = RARE_CATCH_GRADE_LABELS[grade];
+          const locName = RARE_CATCH_LOCATION_NAMES[location] || location;
+          sendSlackMessage(
+            `${gradeLabel} 등급 출현! *${nickname}* 님이 ${locName}에서 ${fish.emoji} *${fish.name}* (${sizeCm}cm)을(를) 낚았습니다!`
+          ).catch(() => {});
+        }
 
         startFishingLoop(io, userId, nickname, location);
       } catch (err) {
@@ -1757,6 +1773,11 @@ export function setupSocket(io: Server) {
 
     socket.on('fishing:get_counts', () => {
       broadcastFishingCounts(io);
+    });
+
+    socket.on('fishing:get_event', () => {
+      const event = getActiveEvent();
+      socket.emit('fishing:event_status', event);
     });
 
     socket.on('fishing:join', (location: string) => {

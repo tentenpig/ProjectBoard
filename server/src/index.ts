@@ -10,6 +10,9 @@ import fishingRankingRouter from './routes/fishingRanking';
 import { setupSocket } from './socket/index';
 import pool from './config/database';
 import { syncLeaderboardFromDB } from './config/redis';
+import { initFishEventScheduler } from './config/fishEvent';
+import { runMigrations } from './config/migrations';
+import debugRouter from './routes/debug';
 
 const app = express();
 const server = http.createServer(app);
@@ -30,15 +33,28 @@ app.use('/api/fishing', fishingRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/fishing-ranking', fishingRankingRouter);
 
+if (process.env.ENABLE_DEBUG === 'true') {
+  app.use('/api/debug', debugRouter);
+  console.log('[Debug] Debug routes enabled at /api/debug');
+}
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
 setupSocket(io);
+initFishEventScheduler(io);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  // Run pending DB migrations
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error('Migrations failed:', err);
+    process.exit(1);
+  }
   // Sync leaderboard from DB on startup
   try {
     await syncLeaderboardFromDB(pool);

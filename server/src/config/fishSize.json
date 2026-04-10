@@ -25,5 +25,12 @@
 
   "azure_dragon": [800, 2000], "kun_fish": [3000, 10000], "taigong_fish": [50, 100],
   "hyeonmu": [500, 1500], "ineo": [150, 300], "white_dragon": [1000, 3000],
-  "leviathan": [5000, 15000], "samjokoh_fish": [200, 500], "kraken": [2000, 8000]
+  "leviathan": [5000, 15000], "samjokoh_fish": [200, 500], "kraken": [2000, 8000],
+
+  "event_river_common": [5, 12], "event_river_uncommon": [8, 18], "event_river_rare": [25, 55],
+  "event_river_legendary": [40, 80], "event_river_mythical": [100, 300],
+  "event_lake_common": [3, 8], "event_lake_uncommon": [10, 30], "event_lake_rare": [15, 35],
+  "event_lake_legendary": [30, 70], "event_lake_mythical": [80, 200],
+  "event_sea_common": [5, 15], "event_sea_uncommon": [10, 30], "event_sea_rare": [20, 50],
+  "event_sea_legendary": [40, 100], "event_sea_mythical": [100, 400]
 }
