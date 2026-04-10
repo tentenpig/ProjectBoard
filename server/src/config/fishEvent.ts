@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { sendSlackMessage } from './slack';
 
 const EVENTS_PER_DAY = 3;
 const EVENT_DURATION_MS = 60 * 60 * 1000; // 1 hour
@@ -61,6 +62,8 @@ function checkEvents() {
           endTime: event.endTime,
         });
       }
+      const durationMin = Math.round((event.endTime - event.startTime) / 60000);
+      sendSlackMessage(`🎉 *${LOCATION_NAMES[event.location]}* 낚시 이벤트가 시작되었습니다! (${durationMin}분간)`).catch(() => {});
     } else if (event.active && now >= event.endTime) {
       // Event ends
       event.active = false;
@@ -71,6 +74,7 @@ function checkEvents() {
           locationName: LOCATION_NAMES[event.location],
         });
       }
+      sendSlackMessage(`🏁 *${LOCATION_NAMES[event.location]}* 낚시 이벤트가 종료되었습니다.`).catch(() => {});
     }
   }
 }
@@ -110,6 +114,7 @@ export function forceStartEvent(location: string, durationMs: number = 60 * 60 *
       endTime: event.endTime,
     });
   }
+  sendSlackMessage(`🎉 *${LOCATION_NAMES[event.location]}* 낚시 이벤트가 시작되었습니다! (${Math.round(durationMs / 60000)}분간)`).catch(() => {});
   return event;
 }
 
@@ -125,6 +130,7 @@ export function forceEndEvent() {
           locationName: LOCATION_NAMES[event.location],
         });
       }
+      sendSlackMessage(`🏁 *${LOCATION_NAMES[event.location]}* 낚시 이벤트가 종료되었습니다.`).catch(() => {});
     }
   }
 }
