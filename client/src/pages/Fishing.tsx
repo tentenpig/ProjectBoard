@@ -70,6 +70,7 @@ export default function Fishing() {
   const [sellSelected, setSellSelected] = useState<Set<number>>(new Set());
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [encyclopedia, setEncyclopedia] = useState<{ entries: EncyclopediaEntry[]; total: number; caught: number }>({ entries: [], total: 0, caught: 0 });
+  const [encTab, setEncTab] = useState<'river' | 'lake' | 'sea'>('river');
   type EncSort = { by: 'grade' | 'name'; dir: 'asc' | 'desc' };
   const [encSort, setEncSort] = useState<Record<string, EncSort>>({});
   const getEncSort = (loc: string): EncSort => encSort[loc] || { by: 'grade', dir: 'asc' };
@@ -279,14 +280,26 @@ export default function Fishing() {
                 <h2>📖 물고기 도감 ({encyclopedia.caught}/{encyclopedia.total})</h2>
                 <button onClick={() => setShowEncyclopedia(false)} className="btn-secondary btn-small">닫기</button>
               </div>
+              <div className="shop-tabs">
+                {(['river', 'lake', 'sea'] as const).map((loc) => {
+                  const info = LOCATION_INFO[loc];
+                  const locEntries = encyclopedia.entries.filter((e) => e.location === loc);
+                  const locCaught = locEntries.filter((e) => e.caught).length;
+                  return (
+                    <button key={loc} className={`shop-tab ${encTab === loc ? 'active' : ''}`} onClick={() => setEncTab(loc)}>
+                      {info.emoji} {info.name} ({locCaught}/{locEntries.length})
+                    </button>
+                  );
+                })}
+              </div>
               <div className="encyclopedia-content">
-                {Object.entries(LOCATION_INFO).map(([locKey, info]) => {
+                {(() => {
+                  const locKey = encTab;
                   const sort = getEncSort(locKey);
                   const arrow = (k: 'grade' | 'name') => sort.by === k ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
                   return (
-                  <div key={locKey} className="encyclopedia-section">
+                  <div className="encyclopedia-section">
                     <div className="enc-section-header">
-                      <h3>{info.emoji} {info.name}</h3>
                       <div className="enc-sort-btns">
                         <button className={`btn-small ${sort.by === 'grade' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'grade')}>등급순{arrow('grade')}</button>
                         <button className={`btn-small ${sort.by === 'name' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'name')}>이름순{arrow('name')}</button>
@@ -310,7 +323,7 @@ export default function Fishing() {
                     </div>
                   </div>
                   );
-                })}
+                })()}
               </div>
             </div>
           </div>
@@ -569,14 +582,26 @@ export default function Fishing() {
               <h2>📖 물고기 도감 ({encyclopedia.caught}/{encyclopedia.total})</h2>
               <button onClick={() => setShowEncyclopedia(false)} className="btn-secondary btn-small">닫기</button>
             </div>
+            <div className="shop-tabs">
+              {(['river', 'lake', 'sea'] as const).map((loc) => {
+                const info = LOCATION_INFO[loc];
+                const locEntries = encyclopedia.entries.filter((e) => e.location === loc);
+                const locCaught = locEntries.filter((e) => e.caught).length;
+                return (
+                  <button key={loc} className={`shop-tab ${encTab === loc ? 'active' : ''}`} onClick={() => setEncTab(loc)}>
+                    {info.emoji} {info.name} ({locCaught}/{locEntries.length})
+                  </button>
+                );
+              })}
+            </div>
             <div className="encyclopedia-content">
-              {Object.entries(LOCATION_INFO).map(([locKey, info]) => {
+              {(() => {
+                const locKey = encTab;
                 const sort = getEncSort(locKey);
                 const arrow = (k: 'grade' | 'name') => sort.by === k ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
                 return (
-                <div key={locKey} className="encyclopedia-section">
+                <div className="encyclopedia-section">
                   <div className="enc-section-header">
-                    <h3>{info.emoji} {info.name}</h3>
                     <div className="enc-sort-btns">
                       <button className={`btn-small ${sort.by === 'grade' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'grade')}>등급순{arrow('grade')}</button>
                       <button className={`btn-small ${sort.by === 'name' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => toggleEncSort(locKey, 'name')}>이름순{arrow('name')}</button>
@@ -600,7 +625,7 @@ export default function Fishing() {
                   </div>
                 </div>
                 );
-              })}
+              })()}
             </div>
           </div>
         </div>
