@@ -64,6 +64,7 @@ export default function Fishing() {
   const [activeEvent, setActiveEvent] = useState<{ location: string; locationName: string; endTime: number } | null>(null);
   const [eventToast, setEventToast] = useState<string | null>(null);
   const [showInventory, setShowInventory] = useState(false);
+  const [invTab, setInvTab] = useState<'fish' | 'rod'>('fish');
   const [showShop, setShowShop] = useState(false);
   const [shopTab, setShopTab] = useState<'buy' | 'sell'>('buy');
   const [shopInfo, setShopInfo] = useState<{ gold: number; level: number; currentRod: string; rods: any[] } | null>(null);
@@ -243,7 +244,7 @@ export default function Fishing() {
             <button onClick={() => { loadFishRanking(); setShowFishRanking(true); }} className="btn-secondary">🏆 랭킹</button>
             <button onClick={() => { loadShop(); loadInventory(); setShowShop(true); setShopTab('buy'); }} className="btn-secondary">🏪 상점</button>
             <button onClick={() => { loadEncyclopedia(); setShowEncyclopedia(true); }} className="btn-secondary">📖 도감</button>
-            <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">배낭 ({inventory.length})</button>
+            <button onClick={() => { loadInventory(); loadShop(); setShowInventory(!showInventory); }} className="btn-secondary">배낭 ({inventory.length})</button>
           </div>
         </header>
 
@@ -252,20 +253,50 @@ export default function Fishing() {
           <div className="modal-overlay" onClick={() => setShowInventory(false)}>
             <div className="modal inventory-modal" onClick={(e) => e.stopPropagation()}>
               <div className="rules-header">
-                <h2>🎒 배낭 ({inventory.length})</h2>
+                <h2>🎒 배낭</h2>
                 <button onClick={() => setShowInventory(false)} className="btn-secondary btn-small">닫기</button>
               </div>
-              {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
-                <div className="inventory-grid">
-                  {inventory.map((item) => (
-                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
-                      <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
-                      <span className="inv-grid-name">{item.name}</span>
-                      {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
-                        <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
-                      ); })()}
-                    </div>
-                  ))}
+              <div className="shop-tabs">
+                <button className={`shop-tab ${invTab === 'fish' ? 'active' : ''}`} onClick={() => setInvTab('fish')}>🐟 물고기 ({inventory.length})</button>
+                <button className={`shop-tab ${invTab === 'rod' ? 'active' : ''}`} onClick={() => setInvTab('rod')}>🎣 낚시대 ({(shopInfo?.ownedRods || []).length})</button>
+              </div>
+              {invTab === 'fish' && (
+                inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
+                  <div className="inventory-grid">
+                    {inventory.map((item) => (
+                      <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
+                        <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
+                        <span className="inv-grid-name">{item.name}</span>
+                        {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
+                          <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
+                        ); })()}
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+              {invTab === 'rod' && shopInfo && (
+                <div className="shop-list">
+                  {shopInfo.rods.filter((rod) => (shopInfo.ownedRods || []).includes(rod.key)).map((rod) => {
+                    const equipped = shopInfo.currentRod === rod.key;
+                    return (
+                      <div key={rod.key} className={`shop-item ${equipped ? 'shop-owned' : ''}`}>
+                        <div className="shop-item-info">
+                          <span className="shop-item-emoji">{rod.emoji}</span>
+                          <div>
+                            <div className="shop-item-name">
+                              {rod.name}
+                              {equipped && <span className="shop-equipped">장착 중</span>}
+                            </div>
+                            <div className="shop-item-desc">{rod.description}</div>
+                          </div>
+                        </div>
+                        {!equipped && (
+                          <button onClick={() => equipRod(rod.key)} className="btn-primary btn-small">장착</button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -395,9 +426,6 @@ export default function Fishing() {
                             <div className="shop-item-meta">Lv.{rod.level} | {rod.price > 0 ? `💰 ${rod.price}` : '무료'}</div>
                           </div>
                         </div>
-                        {!equipped && owned && (
-                          <button onClick={() => equipRod(rod.key)} className="btn-secondary btn-small">장착</button>
-                        )}
                         {!owned && (
                           <button onClick={() => buyRod(rod.key)} className="btn-primary btn-small" disabled={shopInfo.gold < rod.price || shopInfo.level < rod.level}>
                             {shopInfo.level < rod.level ? `Lv.${rod.level}` : shopInfo.gold < rod.price ? '부족' : '구매'}
@@ -493,7 +521,7 @@ export default function Fishing() {
         <div className="fishing-header-btns">
           <span className="gold-display">💰 {user?.gold || 0}</span>
           <button onClick={() => { loadEncyclopedia(); setShowEncyclopedia(true); }} className="btn-secondary">📖 도감</button>
-          <button onClick={() => { loadInventory(); setShowInventory(!showInventory); }} className="btn-secondary">
+          <button onClick={() => { loadInventory(); loadShop(); setShowInventory(!showInventory); }} className="btn-secondary">
             배낭 ({inventory.length})
           </button>
         </div>
@@ -503,20 +531,50 @@ export default function Fishing() {
         <div className="modal-overlay" onClick={() => setShowInventory(false)}>
           <div className="modal inventory-modal" onClick={(e) => e.stopPropagation()}>
             <div className="rules-header">
-              <h2>🎒 배낭 ({inventory.length})</h2>
+              <h2>🎒 배낭</h2>
               <button onClick={() => setShowInventory(false)} className="btn-secondary btn-small">닫기</button>
             </div>
-            {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
-              <div className="inventory-grid">
-                {inventory.map((item) => (
-                  <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
-                    <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
-                    <span className="inv-grid-name">{item.name}</span>
-                    {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
-                      <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
-                    ); })()}
-                  </div>
-                ))}
+            <div className="shop-tabs">
+              <button className={`shop-tab ${invTab === 'fish' ? 'active' : ''}`} onClick={() => setInvTab('fish')}>🐟 물고기 ({inventory.length})</button>
+              <button className={`shop-tab ${invTab === 'rod' ? 'active' : ''}`} onClick={() => setInvTab('rod')}>🎣 낚시대 ({(shopInfo?.ownedRods || []).length})</button>
+            </div>
+            {invTab === 'fish' && (
+              inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
+                <div className="inventory-grid">
+                  {inventory.map((item) => (
+                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
+                      <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
+                      <span className="inv-grid-name">{item.name}</span>
+                      {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
+                        <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
+                      ); })()}
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+            {invTab === 'rod' && shopInfo && (
+              <div className="shop-list">
+                {shopInfo.rods.filter((rod) => (shopInfo.ownedRods || []).includes(rod.key)).map((rod) => {
+                  const equipped = shopInfo.currentRod === rod.key;
+                  return (
+                    <div key={rod.key} className={`shop-item ${equipped ? 'shop-owned' : ''}`}>
+                      <div className="shop-item-info">
+                        <span className="shop-item-emoji">{rod.emoji}</span>
+                        <div>
+                          <div className="shop-item-name">
+                            {rod.name}
+                            {equipped && <span className="shop-equipped">장착 중</span>}
+                          </div>
+                          <div className="shop-item-desc">{rod.description}</div>
+                        </div>
+                      </div>
+                      {!equipped && (
+                        <button onClick={() => equipRod(rod.key)} className="btn-primary btn-small">장착</button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
