@@ -3,6 +3,10 @@ import { SERVER_URL } from '../config';
 import { useAuth } from '../contexts/AuthContext';
 
 interface FishListItem { key: string; name: string; grade: string; event: boolean; location: string; }
+interface FishingEvent { location: string; startTime: number; endTime: number; active: boolean; }
+
+const LOC_LABELS: Record<string, string> = { river: '🏞 강', lake: '🌊 호수', sea: '🌅 바다' };
+const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default function DebugPanel() {
   const { token, user } = useAuth();
@@ -19,6 +23,7 @@ export default function DebugPanel() {
   const [filterLocation, setFilterLocation] = useState('all');
   const [forcedGrade, setForcedGrade] = useState<string>('');
   const [forcedGradeOn, setForcedGradeOn] = useState(false);
+  const [todayEvents, setTodayEvents] = useState<FishingEvent[]>([]);
 
   const headers: any = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
@@ -51,8 +56,18 @@ export default function DebugPanel() {
     }
   };
 
+  const loadEvents = async () => {
+    const data = await call('events');
+    if (Array.isArray(data)) setTodayEvents(data);
+  };
+
+  useEffect(() => {
+    if (open && user?.is_admin) loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // Admin only — works on both test and prod servers.
-  // Server-side, /api/debug/* is gated by ENABLE_DEBUG env var + DB is_admin check.
+  // Server-side, /api/debug/* requires DB is_admin check.
   if (!user?.is_admin) return null;
 
   const filteredFish = fishList.filter((f) =>
@@ -130,9 +145,33 @@ export default function DebugPanel() {
             <span style={{ fontSize: 12 }}>분</span>
           </div>
           <div className="debug-row">
-            <button onClick={() => call('start-event', { location: eventLocation, durationMin: eventDuration })} className="btn-primary btn-small">이벤트 시작</button>
-            <button onClick={() => call('end-event', {})} className="btn-secondary btn-small">이벤트 종료</button>
-            <button onClick={() => call('events')} className="btn-secondary btn-small">조회</button>
+            <button onClick={async () => { await call('start-event', { location: eventLocation, durationMin: eventDuration }); loadEvents(); }} className="btn-primary btn-small">이벤트 시작</button>
+            <button onClick={async () => { await call('end-event', {}); loadEvents(); }} className="btn-secondary btn-small">이벤트 종료</button>
+            <button onClick={loadEvents} className="btn-secondary btn-small">새로고침</button>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11 }}>
+            <div style={{ color: '#ffab91', marginBottom: 4 }}>오늘 예정된 이벤트</div>
+            {todayEvents.length === 0 ? (
+              <div style={{ color: '#888' }}>예정된 이벤트 없음</div>
+            ) : (
+              todayEvents
+                .slice()
+                .sort((a, b) => a.startTime - b.startTime)
+                .map((e, i) => {
+                  const now = Date.now();
+                  let status = '⏳ 대기';
+                  let color = '#888';
+                  if (e.active && now >= e.startTime && now < e.endTime) { status = '🔴 진행중'; color = '#8f8'; }
+                  else if (now >= e.endTime) { status = '✓ 종료'; color = '#666'; }
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', color }}>
+                      <span>{LOC_LABELS[e.location] || e.location}</span>
+                      <span>{fmtTime(e.startTime)}~{fmtTime(e.endTime)}</span>
+                      <span>{status}</span>
+                    </div>
+                  );
+                })
+            )}
           </div>
         </div>
 
