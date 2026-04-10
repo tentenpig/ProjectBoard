@@ -46,6 +46,7 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: test-server-jwt-secret-key
       PORT: 3001
+      ENABLE_DEBUG: "true"
     depends_on:
       mysql-test:
         condition: service_healthy

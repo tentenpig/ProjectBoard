@@ -118,7 +118,7 @@ export default function DebugPanel() {
           </div>
           <div className="debug-row">
             <button onClick={() => call('start-event', { location: eventLocation, durationMin: eventDuration })} className="btn-primary btn-small">이벤트 시작</button>
-            <button onClick={() => call('end-event')} className="btn-secondary btn-small">이벤트 종료</button>
+            <button onClick={() => call('end-event', {})} className="btn-secondary btn-small">이벤트 종료</button>
             <button onClick={() => call('events')} className="btn-secondary btn-small">조회</button>
           </div>
         </div>
