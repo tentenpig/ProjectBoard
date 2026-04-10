@@ -64,6 +64,7 @@ services:
       - server-test
     volumes:
       - ./client/src:/app/src
+      - ./client/public:/app/public
 
 volumes:
   mysql_test_data:

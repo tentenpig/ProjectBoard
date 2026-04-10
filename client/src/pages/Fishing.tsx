@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import Chat from '../components/Chat';
 import FishDetail, { getSizeLabel } from '../components/FishDetail';
+import FishImage from '../components/FishImage';
 
 import { SERVER_URL } from '../config';
 
@@ -257,7 +258,7 @@ export default function Fishing() {
                 <div className="inventory-grid">
                   {inventory.map((item) => (
                     <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
-                      <span className="inv-grid-emoji">{item.emoji}</span>
+                      <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
                       <span className="inv-grid-name">{item.name}</span>
                       {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
                         <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
@@ -301,7 +302,7 @@ export default function Fishing() {
                             style={{ background: entry.caught ? getRarityColor(grade) : 'var(--bg-surface)' }}
                             onClick={() => entry.caught && setFishDetail({ ...entry, grade, weight: fishInfo?.weight, description: fishInfo?.description })}
                           >
-                            <span className="inv-grid-emoji">{entry.emoji}</span>
+                            {entry.caught ? <FishImage fishKey={entry.key} location={entry.location} emoji={entry.emoji} className="inv-grid-emoji" size={40} /> : <span className="inv-grid-emoji">{entry.emoji}</span>}
                             <span className="inv-grid-name">{entry.name}</span>
                           </div>
                         );
@@ -416,7 +417,7 @@ export default function Fishing() {
                             style={{ background: getRarityColor(item.grade) }}
                             onClick={() => toggleSell(item.inventoryId)}>
                             <div className="sell-item-check">{sellSelected.has(item.inventoryId) ? '✓' : ''}</div>
-                            <span className="inv-grid-emoji">{item.emoji}</span>
+                            <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
                             <span className="inv-grid-name">{item.name}</span>
                             {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
                               <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
@@ -496,7 +497,7 @@ export default function Fishing() {
               <div className="inventory-grid">
                 {inventory.map((item) => (
                   <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
-                    <span className="inv-grid-emoji">{item.emoji}</span>
+                    <FishImage fishKey={item.key} location={item.location} emoji={item.emoji} className="inv-grid-emoji" size={40} />
                     <span className="inv-grid-name">{item.name}</span>
                     {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
                       <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
@@ -591,7 +592,7 @@ export default function Fishing() {
                           style={{ background: entry.caught ? getRarityColor(grade) : 'var(--bg-surface)' }}
                           onClick={() => entry.caught && setFishDetail({ ...entry, grade, weight: fishInfo?.weight, description: fishInfo?.description })}
                         >
-                          <span className="inv-grid-emoji">{entry.emoji}</span>
+                          {entry.caught ? <FishImage fishKey={entry.key} location={entry.location} emoji={entry.emoji} className="inv-grid-emoji" size={40} /> : <span className="inv-grid-emoji">{entry.emoji}</span>}
                           <span className="inv-grid-name">{entry.name}</span>
                         </div>
                       );
