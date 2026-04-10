@@ -89,6 +89,46 @@ export function getAllEvents(): FishingEvent[] {
   return todayEvents;
 }
 
+export function forceStartEvent(location: string, durationMs: number = 60 * 60 * 1000): FishingEvent {
+  // End any active event first
+  forceEndEvent();
+
+  const now = Date.now();
+  const event: FishingEvent = {
+    location,
+    startTime: now,
+    endTime: now + durationMs,
+    active: true,
+  };
+  todayEvents.push(event);
+  console.log(`[FishEvent] Force started: ${location} for ${durationMs / 60000}min`);
+
+  if (io) {
+    io.emit('fishing:event_start', {
+      location: event.location,
+      locationName: LOCATION_NAMES[event.location],
+      endTime: event.endTime,
+    });
+  }
+  return event;
+}
+
+export function forceEndEvent() {
+  for (const event of todayEvents) {
+    if (event.active) {
+      event.active = false;
+      event.endTime = Date.now();
+      console.log(`[FishEvent] Force ended: ${event.location}`);
+      if (io) {
+        io.emit('fishing:event_end', {
+          location: event.location,
+          locationName: LOCATION_NAMES[event.location],
+        });
+      }
+    }
+  }
+}
+
 export function initFishEventScheduler(socketIo: Server) {
   io = socketIo;
   todayEvents = generateDayEvents();

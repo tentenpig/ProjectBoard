@@ -8,25 +8,29 @@ import Room from './pages/Room';
 import Game from './pages/Game';
 import Ranking from './pages/Ranking';
 import Fishing from './pages/Fishing';
+import DebugPanel from './components/DebugPanel';
 
 function AppRoutes() {
   const { token } = useAuth();
 
   return (
-    <Routes>
-      {!token ? (
-        <Route path="*" element={<Login />} />
-      ) : (
-        <>
-          <Route path="/lobby" element={<Lobby />} />
-          <Route path="/ranking" element={<Ranking />} />
-          <Route path="/fishing" element={<Fishing />} />
-          <Route path="/room/:roomId" element={<Room />} />
-          <Route path="/game/:roomId" element={<Game />} />
-          <Route path="*" element={<Navigate to="/lobby" />} />
-        </>
-      )}
-    </Routes>
+    <>
+      <Routes>
+        {!token ? (
+          <Route path="*" element={<Login />} />
+        ) : (
+          <>
+            <Route path="/lobby" element={<Lobby />} />
+            <Route path="/ranking" element={<Ranking />} />
+            <Route path="/fishing" element={<Fishing />} />
+            <Route path="/room/:roomId" element={<Room />} />
+            <Route path="/game/:roomId" element={<Game />} />
+            <Route path="*" element={<Navigate to="/lobby" />} />
+          </>
+        )}
+      </Routes>
+      {token && <DebugPanel />}
+    </>
   );
 }
 
