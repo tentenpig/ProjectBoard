@@ -104,8 +104,15 @@ export default function Fishing() {
     socket.on('fishing:log', (entry: { nickname: string; fish: FishDef; timestamp: number }) => {
       setFishLog((prev) => [...prev.slice(-49), { type: 'catch' as const, ...entry }]);
     });
+    socket.on('fishing:kicked', () => {
+      setLocation(null);
+      setCasting(false);
+      setLastCatch(null);
+      setFishLog([]);
+      setFishingUsers([]);
+    });
     socket.emit('fishing:get_counts');
-    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); };
+    return () => { socket.off('fishing:counts'); socket.off('fishing:users'); socket.off('fishing:cast'); socket.off('fishing:caught'); socket.off('fishing:log'); socket.off('fishing:kicked'); };
   }, [socket]);
 
   const loadInventory = () => fetch(`${SERVER_URL}/api/fishing/inventory`, { headers }).then((r) => r.json()).then((d) => setInventory(d.inventory || []));

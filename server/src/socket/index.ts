@@ -361,6 +361,62 @@ function autoAssignTeam(room: Room, playerId: number) {
   room.teams.set(playerId, team0 <= team1 ? 0 : 1);
 }
 
+// Global fishing timer map - one per user across all sockets
+const fishingTimers = new Map<number, ReturnType<typeof setTimeout>>();
+
+function stopFishingLoop(userId: number) {
+  const timer = fishingTimers.get(userId);
+  if (timer) { clearTimeout(timer); fishingTimers.delete(userId); }
+}
+
+function startFishingLoop(io: Server, userId: number, nickname: string, location: string) {
+  stopFishingLoop(userId);
+
+  const targetSocket = userSockets.get(userId);
+  if (!targetSocket) return;
+
+  (async () => {
+    let rodBonus = 0;
+    try {
+      const [eqRows] = await pool.query<any[]>('SELECT rod_key FROM user_equipment WHERE user_id = ?', [userId]);
+      if (eqRows.length > 0) rodBonus = getRodBonus(eqRows[0].rod_key);
+    } catch {}
+
+    const fish = pickFish(location, rodBonus);
+    const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
+
+    targetSocket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });
+
+    const timer = setTimeout(async () => {
+      try {
+        const currentSocket = userSockets.get(userId);
+        if (!currentSocket || !currentSocket.rooms.has(`fishing:${location}`)) return;
+
+        const minSize = (fish as any).minSize || 10;
+        const maxSize = (fish as any).maxSize || 50;
+        const sizeCm = Math.round((minSize + Math.random() * (maxSize - minSize)) * 10) / 10;
+
+        await pool.query('INSERT INTO fish_inventory (user_id, fish_key, size_cm) VALUES (?, ?, ?)', [userId, fish.key, sizeCm]);
+
+        currentSocket.emit('fishing:caught', { fish, sizeCm });
+
+        io.to(`fishing:${location}`).emit('fishing:log', {
+          nickname,
+          fish: { key: fish.key, name: fish.name, emoji: fish.emoji, price: fish.price, exp: fish.exp, grade: (fish as any).grade },
+          sizeCm,
+          timestamp: Date.now(),
+        });
+
+        startFishingLoop(io, userId, nickname, location);
+      } catch (err) {
+        console.error('Fishing loop error:', err);
+      }
+    }, catchTime);
+
+    fishingTimers.set(userId, timer);
+  })().catch((err) => console.error('Fishing loop start error:', err));
+}
+
 function broadcastFishingCounts(io: Server) {
   const counts: Record<string, number> = { river: 0, lake: 0, sea: 0 };
   for (const loc of ['river', 'lake', 'sea']) {
@@ -986,6 +1042,27 @@ export function setupSocket(io: Server) {
 
   io.on('connection', (socket) => {
     const user: UserInfo = (socket as any).user;
+    // Stop any existing fishing loop from previous connection
+    stopFishingLoop(user.id);
+    // Kick previous socket's fishing rooms and notify
+    const prevSocket = userSockets.get(user.id);
+    if (prevSocket && prevSocket.id !== socket.id) {
+      const prevFishingLocations: string[] = [];
+      prevSocket.rooms.forEach((r) => {
+        if (r.startsWith('fishing:')) {
+          prevFishingLocations.push(r.replace('fishing:', ''));
+          prevSocket.leave(r);
+        }
+      });
+      // Notify previous tab
+      prevSocket.emit('fishing:kicked', '다른 창에서 낚시에 입장했습니다.');
+      // Update counts and user lists for vacated locations
+      for (const loc of prevFishingLocations) {
+        broadcastFishingCounts(io);
+        broadcastFishingUsers(io, loc);
+      }
+    }
+
     userSockets.set(user.id, socket);
     onlineNicknames.add(user.nickname);
     console.log(`Connected: ${user.nickname} (${user.id})`);
@@ -1676,62 +1753,7 @@ export function setupSocket(io: Server) {
       }
     });
 
-    // Fishing auto-loop
-    const fishingTimers = new Map<number, ReturnType<typeof setTimeout>>();
-
-    async function startFishingLoop(userId: number, nickname: string, location: string) {
-      stopFishingLoop(userId);
-
-      // Get rod bonus
-      let rodBonus = 0;
-      try {
-        const [eqRows] = await pool.query<any[]>('SELECT rod_key FROM user_equipment WHERE user_id = ?', [userId]);
-        if (eqRows.length > 0) rodBonus = getRodBonus(eqRows[0].rod_key);
-      } catch {}
-
-      const fish = pickFish(location, rodBonus);
-      const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
-
-      socket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });
-
-      const timer = setTimeout(async () => {
-        try {
-          // Check user is still in the fishing room
-          if (!socket.rooms.has(`fishing:${location}`)) return;
-
-          // Generate random size
-          const minSize = (fish as any).minSize || 10;
-          const maxSize = (fish as any).maxSize || 50;
-          const sizeCm = Math.round((minSize + Math.random() * (maxSize - minSize)) * 10) / 10;
-
-          // Add to inventory
-          await pool.query('INSERT INTO fish_inventory (user_id, fish_key, size_cm) VALUES (?, ?, ?)', [userId, fish.key, sizeCm]);
-
-          // Notify user
-          socket.emit('fishing:caught', { fish, sizeCm });
-
-          // Send to fishing log
-          io.to(`fishing:${location}`).emit('fishing:log', {
-            nickname,
-            fish: { key: fish.key, name: fish.name, emoji: fish.emoji, price: fish.price, exp: fish.exp, weight: fish.weight },
-            sizeCm,
-            timestamp: Date.now(),
-          });
-
-          // Auto re-cast
-          startFishingLoop(userId, nickname, location);
-        } catch (err) {
-          console.error('Fishing loop error:', err);
-        }
-      }, catchTime);
-
-      fishingTimers.set(userId, timer);
-    }
-
-    function stopFishingLoop(userId: number) {
-      const timer = fishingTimers.get(userId);
-      if (timer) { clearTimeout(timer); fishingTimers.delete(userId); }
-    }
+    // Fishing auto-loop (uses global startFishingLoop/stopFishingLoop)
 
     socket.on('fishing:get_counts', () => {
       broadcastFishingCounts(io);
@@ -1745,7 +1767,7 @@ export function setupSocket(io: Server) {
       broadcastFishingCounts(io);
       broadcastFishingUsers(io, location);
       // Start auto-fishing
-      startFishingLoop(user.id, user.nickname, location).catch((err) => console.error('Fishing loop start error:', err));
+      startFishingLoop(io, user.id, user.nickname, location);
     });
 
     socket.on('fishing:leave', () => {
