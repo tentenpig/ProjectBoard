@@ -1,3 +1,5 @@
+import FishImage from './FishImage';
+
 interface FishInfo {
   key: string;
   name: string;
@@ -48,7 +50,7 @@ export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose:
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal fish-detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="fish-detail-header">
-          <span className="fish-detail-emoji">{fish.emoji}</span>
+          <FishImage fishKey={fish.key} location={fish.location} emoji={fish.emoji} className="fish-detail-emoji" size={80} />
           <div>
             <h2>{fish.name}</h2>
             <div className="fish-detail-sub">
