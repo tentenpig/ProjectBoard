@@ -61,7 +61,7 @@ import {
   getPlayerView as getFlickPlayerView,
   getSpectatorView as getFlickSpectatorView,
 } from '../games/flick/logic';
-import { pickFish, getRodBonus } from '../routes/fishing';
+import { pickFish, getRodBonus, getForcedGrade } from '../routes/fishing';
 import { getActiveEventForLocation, getActiveEvent, getAllEvents } from '../config/fishEvent';
 import { sendSlackMessage } from '../config/slack';
 
@@ -388,7 +388,8 @@ function startFishingLoop(io: Server, userId: number, nickname: string, location
     } catch {}
 
     const eventActive = !!getActiveEventForLocation(location);
-    const fish = pickFish(location, rodBonus, eventActive);
+    const forcedGrade = getForcedGrade(userId);
+    const fish = pickFish(location, rodBonus, eventActive, forcedGrade);
     const catchTime = (fish.minTime + Math.random() * (fish.maxTime - fish.minTime)) * 1000;
 
     targetSocket.emit('fishing:cast', { fishKey: fish.key, catchTime, location });

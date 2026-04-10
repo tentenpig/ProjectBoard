@@ -17,6 +17,8 @@ export default function DebugPanel() {
   const [log, setLog] = useState<string[]>([]);
   const [filterGrade, setFilterGrade] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
+  const [forcedGrade, setForcedGrade] = useState<string>('');
+  const [forcedGradeOn, setForcedGradeOn] = useState(false);
 
   const headers: any = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
@@ -25,6 +27,12 @@ export default function DebugPanel() {
     fetch(`${SERVER_URL}/api/debug/fish-list`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setFishList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+    fetch(`${SERVER_URL}/api/debug/force-grade`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : { forcedGrade: null })
+      .then((data) => {
+        if (data.forcedGrade) { setForcedGrade(data.forcedGrade); setForcedGradeOn(true); }
+      })
       .catch(() => {});
   }, [user?.is_admin, token]);
 
@@ -125,6 +133,39 @@ export default function DebugPanel() {
             <button onClick={() => call('start-event', { location: eventLocation, durationMin: eventDuration })} className="btn-primary btn-small">이벤트 시작</button>
             <button onClick={() => call('end-event', {})} className="btn-secondary btn-small">이벤트 종료</button>
             <button onClick={() => call('events')} className="btn-secondary btn-small">조회</button>
+          </div>
+        </div>
+
+        {/* Forced grade */}
+        <div className="debug-section">
+          <h4>다음 낚시 등급 강제 {forcedGradeOn && <span style={{ color: '#8f8' }}>● ON</span>}</h4>
+          <div className="debug-row">
+            <select value={forcedGrade} onChange={(e) => setForcedGrade(e.target.value)}>
+              <option value="">-- 등급 선택 --</option>
+              <option value="common">흔함</option>
+              <option value="uncommon">보통</option>
+              <option value="rare">희귀</option>
+              <option value="legendary">전설</option>
+              <option value="mythical">신화</option>
+            </select>
+            <button
+              onClick={async () => {
+                if (!forcedGrade) return;
+                await call('force-grade', { grade: forcedGrade });
+                setForcedGradeOn(true);
+              }}
+              className="btn-primary btn-small"
+            >ON</button>
+            <button
+              onClick={async () => {
+                await call('force-grade', { grade: null });
+                setForcedGradeOn(false);
+              }}
+              className="btn-secondary btn-small"
+            >OFF</button>
+          </div>
+          <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+            ON 상태에서는 본인이 잡는 다음 모든 물고기가 선택한 등급으로 고정됩니다.
           </div>
         </div>
 

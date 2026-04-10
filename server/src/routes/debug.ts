@@ -5,6 +5,9 @@ import { RowDataPacket } from 'mysql2';
 import fishData from '../config/fish.json';
 import fishSizeData from '../config/fishSize.json';
 import { forceStartEvent, forceEndEvent, getAllEvents } from '../config/fishEvent';
+import { setForcedGrade, getForcedGrade } from '../routes/fishing';
+
+const VALID_GRADES = ['common', 'uncommon', 'rare', 'legendary', 'mythical'];
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -93,6 +96,22 @@ router.get('/events', (_req: Request, res: Response) => {
 // List all fish keys
 router.get('/fish-list', (_req: Request, res: Response) => {
   res.json(allFish.map((f: any) => ({ key: f.key, name: f.name, grade: f.grade, event: f.event || false, location: f.location })));
+});
+
+// Force next catch grade for the calling user (debug only)
+router.post('/force-grade', (req: Request, res: Response) => {
+  const user = (req as any).authUser as { id: number };
+  const { grade } = req.body as { grade: string | null };
+  if (grade !== null && !VALID_GRADES.includes(grade)) {
+    return res.status(400).json({ error: 'Invalid grade', validGrades: VALID_GRADES });
+  }
+  setForcedGrade(user.id, grade);
+  res.json({ success: true, forcedGrade: getForcedGrade(user.id) });
+});
+
+router.get('/force-grade', (req: Request, res: Response) => {
+  const user = (req as any).authUser as { id: number };
+  res.json({ forcedGrade: getForcedGrade(user.id) });
 });
 
 export default router;
