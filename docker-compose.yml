@@ -46,6 +46,7 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       PORT: 3001
+      SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
     depends_on:
       mysql:
         condition: service_healthy
