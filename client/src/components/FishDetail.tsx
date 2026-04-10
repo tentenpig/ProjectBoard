@@ -10,6 +10,8 @@ interface FishInfo {
   description?: string;
   caught?: boolean;
   sizeCm?: number;
+  minSize?: number;
+  maxSize?: number;
   recordMinSize?: number | null;
   recordMaxSize?: number | null;
   caughtCount?: number;
@@ -29,8 +31,18 @@ const GRADE_INFO: Record<string, { label: string; color: string }> = {
   common: { label: '흔함', color: '#27ae60' },
 };
 
+export function getSizeLabel(sizeCm: number, minSize?: number, maxSize?: number): { label: string; color: string } {
+  if (!minSize || !maxSize || minSize === maxSize) return { label: '', color: '' };
+  if (sizeCm >= maxSize) return { label: '최대', color: '#ff4500' };
+  const ratio = (sizeCm - minSize) / (maxSize - minSize);
+  if (ratio >= 0.8) return { label: '대', color: '#c8a200' };
+  if (ratio >= 0.4) return { label: '중', color: '#2980b9' };
+  return { label: '소', color: '#27ae60' };
+}
+
 export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose: () => void }) {
   const rarity = fish.grade ? GRADE_INFO[fish.grade] || null : null;
+  const sizeInfo = fish.sizeCm ? getSizeLabel(fish.sizeCm, fish.minSize, fish.maxSize) : null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -63,6 +75,9 @@ export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose:
               <div className="fish-stat">
                 <span className="fish-stat-label">크기</span>
                 <span className="fish-stat-value">📏 {fish.sizeCm}cm</span>
+                {sizeInfo && sizeInfo.label && (
+                  <span className="fish-size-grade" style={{ color: sizeInfo.color }}>{sizeInfo.label}</span>
+                )}
               </div>
             )}
           </div>

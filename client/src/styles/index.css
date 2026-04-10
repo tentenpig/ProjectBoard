@@ -3297,6 +3297,7 @@ button {
   text-shadow: none;
 }
 .inv-grid-price { font-size: 10px; color: rgba(255,255,255,0.9); }
+.inv-grid-size { font-size: 10px; color: rgba(255,255,255,0.85); font-weight: 500; }
 
 /* Sell grid */
 .sell-selectable {
@@ -3598,6 +3599,13 @@ button {
 .fish-stat-value {
   font-size: 16px;
   font-weight: 600;
+}
+
+.fish-size-grade {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 2px;
 }
 
 .fish-detail-records {

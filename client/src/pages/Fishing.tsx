@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import Chat from '../components/Chat';
-import FishDetail from '../components/FishDetail';
+import FishDetail, { getSizeLabel } from '../components/FishDetail';
 
 import { SERVER_URL } from '../config';
 
@@ -207,9 +207,12 @@ export default function Fishing() {
               {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
                 <div className="inventory-grid">
                   {inventory.map((item) => (
-                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => setFishDetail(item)}>
+                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
                       <span className="inv-grid-emoji">{item.emoji}</span>
                       <span className="inv-grid-name">{item.name}</span>
+                      {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
+                        <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
+                      ); })()}
                     </div>
                   ))}
                 </div>
@@ -356,6 +359,9 @@ export default function Fishing() {
                             <div className="sell-item-check">{sellSelected.has(item.inventoryId) ? '✓' : ''}</div>
                             <span className="inv-grid-emoji">{item.emoji}</span>
                             <span className="inv-grid-name">{item.name}</span>
+                            {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
+                              <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
+                            ); })()}
                             <span className="inv-grid-price">💰{item.price}</span>
                           </div>
                         ))}
@@ -418,9 +424,12 @@ export default function Fishing() {
             {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
               <div className="inventory-grid">
                 {inventory.map((item) => (
-                  <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => setFishDetail(item)}>
+                  <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => { const fi = getFishInfo(item.key); setFishDetail({ ...item, minSize: fi?.minSize, maxSize: fi?.maxSize }); }}>
                     <span className="inv-grid-emoji">{item.emoji}</span>
                     <span className="inv-grid-name">{item.name}</span>
+                    {item.sizeCm && (() => { const fi = getFishInfo(item.key); const sl = getSizeLabel(item.sizeCm, fi?.minSize, fi?.maxSize); return (
+                      <span className="inv-grid-size">{item.sizeCm}cm {sl.label && <span style={{ color: sl.color }}>({sl.label})</span>}</span>
+                    ); })()}
                   </div>
                 ))}
               </div>
