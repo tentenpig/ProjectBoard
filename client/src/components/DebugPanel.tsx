@@ -51,8 +51,8 @@ export default function DebugPanel() {
     }
   };
 
-  // Only show on test server (port 5174) AND for admin users
-  if (window.location.port !== '5174') return null;
+  // Admin only — works on both test and prod servers.
+  // Server-side, /api/debug/* is gated by ENABLE_DEBUG env var + DB is_admin check.
   if (!user?.is_admin) return null;
 
   const filteredFish = fishList.filter((f) =>
