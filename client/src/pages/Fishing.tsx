@@ -141,7 +141,12 @@ export default function Fishing() {
   };
 
   const toggleSell = (id: number) => setSellSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleAllSell = () => { if (sellSelected.size === inventory.length) setSellSelected(new Set()); else setSellSelected(new Set(inventory.map((i) => i.inventoryId))); };
+  const selectByRarity = (maxWeight: number, minWeight: number = 0) => {
+    const ids = inventory.filter((i) => i.weight > minWeight && i.weight <= maxWeight).map((i) => i.inventoryId);
+    setSellSelected(new Set(ids));
+  };
+  const selectAll = () => setSellSelected(new Set(inventory.map((i) => i.inventoryId)));
+  const selectNone = () => setSellSelected(new Set());
 
   const getFishInfo = (key: string) => allFishData.find((f) => f.key === key);
 
@@ -307,9 +312,14 @@ export default function Fishing() {
                 <div className="shop-list">
                   <div className="sell-controls">
                     <span>{sellSelected.size}개 선택</span>
-                    <button onClick={toggleAllSell} className="btn-secondary btn-small">
-                      {sellSelected.size === inventory.length ? '모두 취소' : '모두 선택'}
-                    </button>
+                    <div className="sell-filter-btns">
+                      <button onClick={selectAll} className="btn-secondary btn-small">전체</button>
+                      <button onClick={() => selectByRarity(999, 15)} className="btn-secondary btn-small" style={{ color: '#27ae60' }}>흔함</button>
+                      <button onClick={() => selectByRarity(15, 5)} className="btn-secondary btn-small" style={{ color: '#2980b9' }}>보통</button>
+                      <button onClick={() => selectByRarity(5, 1)} className="btn-secondary btn-small" style={{ color: '#9b59b6' }}>희귀</button>
+                      <button onClick={() => selectByRarity(1, 0)} className="btn-secondary btn-small" style={{ color: '#c8a200' }}>전설</button>
+                      <button onClick={selectNone} className="btn-secondary btn-small">해제</button>
+                    </div>
                   </div>
                   {inventory.length === 0 ? <p className="fishing-empty">판매할 물고기가 없습니다</p> : (
                     <>

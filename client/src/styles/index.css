@@ -3451,6 +3451,12 @@ button {
   font-size: 13px;
 }
 
+.sell-filter-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .sell-actions {
   display: flex;
   gap: 6px;
