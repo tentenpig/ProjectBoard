@@ -164,8 +164,7 @@ export default function Fishing() {
       return next;
     });
   };
-  const selectAll = () => setSellSelected(new Set(inventory.map((i) => i.inventoryId)));
-  const selectNone = () => setSellSelected(new Set());
+  const toggleAll = () => setSellSelected((prev) => prev.size === inventory.length ? new Set() : new Set(inventory.map((i) => i.inventoryId)));
 
   const getFishInfo = (key: string) => allFishData.find((f) => f.key === key);
 
@@ -332,13 +331,12 @@ export default function Fishing() {
                   <div className="sell-controls">
                     <span>{sellSelected.size}개 선택</span>
                     <div className="sell-filter-btns">
-                      <button onClick={selectAll} className="btn-secondary btn-small">전체</button>
+                      <button onClick={toggleAll} className="btn-secondary btn-small">{sellSelected.size === inventory.length ? '전체 해제' : '전체'}</button>
                       <button onClick={() => selectByGrade('common')} className="btn-secondary btn-small" style={{ color: '#27ae60' }}>흔함</button>
                       <button onClick={() => selectByGrade('uncommon')} className="btn-secondary btn-small" style={{ color: '#2980b9' }}>보통</button>
                       <button onClick={() => selectByGrade('rare')} className="btn-secondary btn-small" style={{ color: '#9b59b6' }}>희귀</button>
                       <button onClick={() => selectByGrade('legendary')} className="btn-secondary btn-small" style={{ color: '#c8a200' }}>전설</button>
                       <button onClick={() => selectByGrade('mythical')} className="btn-secondary btn-small" style={{ color: '#ff4500' }}>신화</button>
-                      <button onClick={selectNone} className="btn-secondary btn-small">해제</button>
                     </div>
                   </div>
                   {inventory.length === 0 ? <p className="fishing-empty">판매할 물고기가 없습니다</p> : (
