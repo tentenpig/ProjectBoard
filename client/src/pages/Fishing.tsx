@@ -495,12 +495,12 @@ export default function Fishing() {
                   <div className="inventory-grid">
                     {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => {
                       const fishInfo = getFishInfo(entry.key);
-                      const weight = fishInfo?.weight || 30;
+                      const grade = fishInfo?.grade || 'common';
                       return (
                         <div key={entry.key}
                           className={`inv-grid-item ${!entry.caught ? 'enc-unknown' : ''}`}
-                          style={{ background: entry.caught ? getRarityColor(weight) : 'var(--bg-surface)' }}
-                          onClick={() => entry.caught && setFishDetail({ ...entry, weight, description: fishInfo?.description })}
+                          style={{ background: entry.caught ? getRarityColor(grade) : 'var(--bg-surface)' }}
+                          onClick={() => entry.caught && setFishDetail({ ...entry, grade, weight: fishInfo?.weight, description: fishInfo?.description })}
                         >
                           <span className="inv-grid-emoji">{entry.emoji}</span>
                           <span className="inv-grid-name">{entry.name}</span>
