@@ -4,6 +4,7 @@ interface FishInfo {
   emoji: string;
   location: string;
   weight?: number;
+  grade?: string;
   price?: number | null;
   exp?: number | null;
   description?: string;
@@ -20,15 +21,15 @@ const LOCATION_NAMES: Record<string, string> = {
   sea: '🌅 바다',
 };
 
-function getRarityInfo(weight: number): { label: string; color: string } {
-  if (weight <= 1) return { label: '전설', color: '#c8a200' };
-  if (weight <= 5) return { label: '희귀', color: '#9b59b6' };
-  if (weight <= 15) return { label: '보통', color: '#2980b9' };
-  return { label: '흔함', color: '#27ae60' };
-}
+const GRADE_INFO: Record<string, { label: string; color: string }> = {
+  legendary: { label: '전설', color: '#c8a200' },
+  rare: { label: '희귀', color: '#9b59b6' },
+  uncommon: { label: '보통', color: '#2980b9' },
+  common: { label: '흔함', color: '#27ae60' },
+};
 
 export default function FishDetail({ fish, onClose }: { fish: FishInfo; onClose: () => void }) {
-  const rarity = fish.weight != null ? getRarityInfo(fish.weight) : null;
+  const rarity = fish.grade ? GRADE_INFO[fish.grade] || null : null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>

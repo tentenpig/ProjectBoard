@@ -23,18 +23,26 @@ const LOCATION_INFO: Record<string, { name: string; emoji: string; bg: string }>
   sea: { name: '바다', emoji: '🌅', bg: '#1a3a5a' },
 };
 
-function getRarityColor(weight: number): string {
-  if (weight <= 1) return '#c8a20088';    // legendary - gold
-  if (weight <= 5) return '#9b59b688';    // rare - purple
-  if (weight <= 15) return '#2980b988';   // uncommon - blue
-  return '#27ae6088';                      // common - green
+const GRADE_COLORS: Record<string, string> = {
+  legendary: '#c8a20088',
+  rare: '#9b59b688',
+  uncommon: '#2980b988',
+  common: '#27ae6088',
+};
+
+const GRADE_LABELS: Record<string, string> = {
+  legendary: '전설',
+  rare: '희귀',
+  uncommon: '보통',
+  common: '흔함',
+};
+
+function getRarityColor(grade?: string): string {
+  return GRADE_COLORS[grade || 'common'] || GRADE_COLORS.common;
 }
 
-function getRarityLabel(weight: number): string {
-  if (weight <= 1) return '전설';
-  if (weight <= 5) return '희귀';
-  if (weight <= 15) return '보통';
-  return '흔함';
+function getRarityLabel(grade?: string): string {
+  return GRADE_LABELS[grade || 'common'] || GRADE_LABELS.common;
 }
 
 export default function Fishing() {
@@ -141,9 +149,18 @@ export default function Fishing() {
   };
 
   const toggleSell = (id: number) => setSellSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const selectByRarity = (maxWeight: number, minWeight: number = 0) => {
-    const ids = inventory.filter((i) => i.weight > minWeight && i.weight <= maxWeight).map((i) => i.inventoryId);
-    setSellSelected(new Set(ids));
+  const selectByGrade = (grade: string) => {
+    const gradeIds = inventory.filter((i) => i.grade === grade).map((i) => i.inventoryId);
+    setSellSelected((prev) => {
+      const next = new Set(prev);
+      const allSelected = gradeIds.every((id) => next.has(id));
+      if (allSelected) {
+        gradeIds.forEach((id) => next.delete(id));
+      } else {
+        gradeIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
   };
   const selectAll = () => setSellSelected(new Set(inventory.map((i) => i.inventoryId)));
   const selectNone = () => setSellSelected(new Set());
@@ -182,7 +199,7 @@ export default function Fishing() {
               {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
                 <div className="inventory-grid">
                   {inventory.map((item) => (
-                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.weight) }} onClick={() => setFishDetail(item)}>
+                    <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => setFishDetail(item)}>
                       <span className="inv-grid-emoji">{item.emoji}</span>
                       <span className="inv-grid-name">{item.name}</span>
                     </div>
@@ -208,12 +225,12 @@ export default function Fishing() {
                     <div className="inventory-grid">
                       {encyclopedia.entries.filter((e) => e.location === locKey).map((entry) => {
                         const fishInfo = getFishInfo(entry.key);
-                        const weight = fishInfo?.weight || 30;
+                        const grade = fishInfo?.grade || 'common';
                         return (
                           <div key={entry.key}
                             className={`inv-grid-item ${!entry.caught ? 'enc-unknown' : ''}`}
-                            style={{ background: entry.caught ? getRarityColor(weight) : 'var(--bg-surface)' }}
-                            onClick={() => entry.caught && setFishDetail({ ...entry, weight, description: fishInfo?.description })}
+                            style={{ background: entry.caught ? getRarityColor(grade) : 'var(--bg-surface)' }}
+                            onClick={() => entry.caught && setFishDetail({ ...entry, grade, weight: fishInfo?.weight, description: fishInfo?.description })}
                           >
                             <span className="inv-grid-emoji">{entry.emoji}</span>
                             <span className="inv-grid-name">{entry.name}</span>
@@ -314,10 +331,10 @@ export default function Fishing() {
                     <span>{sellSelected.size}개 선택</span>
                     <div className="sell-filter-btns">
                       <button onClick={selectAll} className="btn-secondary btn-small">전체</button>
-                      <button onClick={() => selectByRarity(999, 15)} className="btn-secondary btn-small" style={{ color: '#27ae60' }}>흔함</button>
-                      <button onClick={() => selectByRarity(15, 5)} className="btn-secondary btn-small" style={{ color: '#2980b9' }}>보통</button>
-                      <button onClick={() => selectByRarity(5, 1)} className="btn-secondary btn-small" style={{ color: '#9b59b6' }}>희귀</button>
-                      <button onClick={() => selectByRarity(1, 0)} className="btn-secondary btn-small" style={{ color: '#c8a200' }}>전설</button>
+                      <button onClick={() => selectByGrade('common')} className="btn-secondary btn-small" style={{ color: '#27ae60' }}>흔함</button>
+                      <button onClick={() => selectByGrade('uncommon')} className="btn-secondary btn-small" style={{ color: '#2980b9' }}>보통</button>
+                      <button onClick={() => selectByGrade('rare')} className="btn-secondary btn-small" style={{ color: '#9b59b6' }}>희귀</button>
+                      <button onClick={() => selectByGrade('legendary')} className="btn-secondary btn-small" style={{ color: '#c8a200' }}>전설</button>
                       <button onClick={selectNone} className="btn-secondary btn-small">해제</button>
                     </div>
                   </div>
@@ -326,7 +343,7 @@ export default function Fishing() {
                       <div className="sell-grid">
                         {inventory.map((item) => (
                           <div key={item.inventoryId} className={`inv-grid-item sell-selectable ${sellSelected.has(item.inventoryId) ? 'sell-checked' : ''}`}
-                            style={{ background: getRarityColor(item.weight) }}
+                            style={{ background: getRarityColor(item.grade) }}
                             onClick={() => toggleSell(item.inventoryId)}>
                             <div className="sell-item-check">{sellSelected.has(item.inventoryId) ? '✓' : ''}</div>
                             <span className="inv-grid-emoji">{item.emoji}</span>
@@ -393,7 +410,7 @@ export default function Fishing() {
             {inventory.length === 0 ? <p className="fishing-empty">비어있습니다</p> : (
               <div className="inventory-grid">
                 {inventory.map((item) => (
-                  <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.weight) }} onClick={() => setFishDetail(item)}>
+                  <div key={item.inventoryId} className="inv-grid-item" style={{ background: getRarityColor(item.grade) }} onClick={() => setFishDetail(item)}>
                     <span className="inv-grid-emoji">{item.emoji}</span>
                     <span className="inv-grid-name">{item.name}</span>
                   </div>
@@ -441,7 +458,7 @@ export default function Fishing() {
                     <span className="log-text-system">{entry.text}</span>
                   </div>
                 ) : (
-                  <div key={i} className="fishing-log-entry" style={{ background: getRarityColor(entry.fish?.weight || 30) }}>
+                  <div key={i} className="fishing-log-entry" style={{ background: getRarityColor(entry.fish?.grade) }}>
                     <span className="log-text-catch">🎣 {entry.nickname}님이 {entry.fish?.emoji} {entry.fish?.name}을(를) 낚았습니다! {entry.sizeCm ? `(${entry.sizeCm}cm)` : ''}</span>
                   </div>
                 )
