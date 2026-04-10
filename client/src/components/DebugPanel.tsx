@@ -21,8 +21,12 @@ export default function DebugPanel() {
   const headers: any = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   useEffect(() => {
-    fetch(`${SERVER_URL}/api/debug/fish-list`).then((r) => r.json()).then(setFishList).catch(() => {});
-  }, []);
+    if (!user?.is_admin) return;
+    fetch(`${SERVER_URL}/api/debug/fish-list`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setFishList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [user?.is_admin, token]);
 
   const addLog = (msg: string) => setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 19)]);
 
